@@ -32,6 +32,7 @@ function figmaVersionedImports() {
 }
 
 export default defineConfig({
+  base: '/rule-studio-module-2/',
   plugins: [
     figmaVersionedImports(),
     figmaAssetResolver(),
