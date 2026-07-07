@@ -1,0 +1,1 @@
+From line 278 to line 494 - removing Schedule Parameters section

@@ -1,0 +1,117 @@
+import React, { useState } from 'react';
+import { ChevronDown, Search } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Checkbox } from './ui/checkbox';
+
+interface MultiSelectProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  options: string[];
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+}
+
+export function MultiSelect({ value, onChange, options, placeholder = 'Select options', className = '', disabled = false }: MultiSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const toggleOption = (option: string) => {
+    const newValue = value.includes(option)
+      ? value.filter(v => v !== option)
+      : [...value, option];
+    onChange(newValue);
+  };
+
+  const handleSelectAll = () => {
+    const newValue = [...new Set([...value, ...filteredOptions])];
+    onChange(newValue);
+  };
+
+  const getDisplayText = () => {
+    if (value.length === 0) return placeholder;
+    if (value.length === 1) return value[0];
+    const firstOne = value[0];
+    const remaining = value.length - 1;
+    return `${firstOne} +${remaining}`;
+  };
+
+  const filteredOptions = options.filter(option => 
+    String(option).toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const allFilteredSelected = filteredOptions.length > 0 && 
+    filteredOptions.every(option => value.includes(option));
+
+  return (
+    <Popover open={isOpen && !disabled} onOpenChange={setIsOpen} modal={false}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={`w-full h-7 border border-[#ced4da] rounded px-3 py-2 text-left flex items-center justify-between transition-colors text-sm ${
+            disabled 
+              ? 'bg-gray-100 cursor-not-allowed text-gray-500 opacity-100' 
+              : 'bg-white hover:bg-gray-50 cursor-pointer'
+          } ${className}`}
+        >
+          <span className={value.length > 0 ? (disabled ? "text-gray-500" : "text-gray-900") : "text-gray-400"}>
+            {getDisplayText()}
+          </span>
+          <ChevronDown className={`h-4 w-4 flex-shrink-0 ml-2 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-3" align="start">
+        {/* Search Input */}
+        <div className="relative mb-2">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search..."
+            className="w-full h-7 pl-8 pr-3 text-xs border border-gray-300 rounded focus:outline-none focus:border-[#ff9800]"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+
+        {/* Select All */}
+        <div className="border-b border-gray-200 mb-2 pb-2">
+          <div
+            className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
+            onClick={handleSelectAll}
+          >
+            <Checkbox
+              checked={allFilteredSelected}
+              onCheckedChange={handleSelectAll}
+              className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
+            />
+            <span className="text-xs text-[#ff9800] hover:text-[#f57c00] transition-colors">Select All</span>
+          </div>
+        </div>
+
+        {/* Options List */}
+        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => (
+              <div
+                key={option}
+                className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
+                onClick={() => toggleOption(option)}
+              >
+                <Checkbox
+                  checked={value.includes(option)}
+                  onCheckedChange={() => toggleOption(option)}
+                  className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
+                />
+                <span className="text-sm text-gray-900">{option}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-xs text-gray-500 text-center py-2">No results found</div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

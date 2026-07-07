@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Input Test</title>
+</head>
+<body>
+    <h1>Test Date/Time Inputs</h1>
+    <label>Start Date:</label>
+    <input type="date" id="startDate" />
+    <br><br>
+    <label>End Date:</label>
+    <input type="date" id="endDate" />
+    <br><br>
+    <label>Time:</label>
+    <input type="time" id="time" />
+    
+    <script>
+        document.getElementById('startDate').addEventListener('change', (e) => {
+            console.log('Start Date changed:', e.target.value);
+        });
+        document.getElementById('endDate').addEventListener('change', (e) => {
+            console.log('End Date changed:', e.target.value);
+        });
+        document.getElementById('time').addEventListener('change', (e) => {
+            console.log('Time changed:', e.target.value);
+        });
+    </script>
+</body>
+</html>
