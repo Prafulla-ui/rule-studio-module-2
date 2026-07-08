@@ -43,7 +43,7 @@ function getInitialSchedulerData() {
     dateRangeType: 'fixed',
     fixedStartDate: '',
     fixedEndDate: '',
-    daysOutValue: '',
+    daysOutValue: '1-10, 2-15, 3-20',
     daysOfWeek: [] as string[],
     pickupTime: '',
     dropoffTime: '',
@@ -63,15 +63,15 @@ function getInitialSchedulerData() {
     endAfterOccurrences: '',
     customFrequency: 'days',
     customInterval: '1',
-    submitRatesToTetheredLocations: false,
-    submitToTetheredProducts: false,
+    submitRatesToTetheredLocations: true,
+    submitToTetheredProducts: true,
     submitOnlyRatesDifferent: false,
     submitExtraHourAndDayRates: false,
-    submitToTetheredCars: false,
+    submitToTetheredCars: true,
     submitToAllLORs: false,
     scheduleIsActive: true,
     overrideBlockedDates: false,
-    notifyEmailAfter: false,
+    notifyEmailAfter: true,
     notifyEmailValue: '180',
     emailAddresses: '',
   };
@@ -135,19 +135,29 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [importCancelDialogOpen, setImportCancelDialogOpen] = useState(false);
 
-  // Design Option 1 State - Tag/Chip Based
-  const [option1Tags, setOption1Tags] = useState<string[]>(['1-10', '20', '25-30']);
-  const [option1Input, setOption1Input] = useState('');
+  const [daysOutInput, setDaysOutInput] = useState('');
+  const daysOutTags = schedulerData.daysOutValue
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 
-  const addOption1Tag = () => {
-    if (option1Input.trim()) {
-      setOption1Tags([...option1Tags, option1Input.trim()]);
-      setOption1Input('');
+  const addDaysOutTag = (rawValue?: string) => {
+    const nextTag = (rawValue ?? daysOutInput).trim();
+    if (!nextTag) return;
+    if (daysOutTags.includes(nextTag)) {
+      setDaysOutInput('');
+      return;
     }
+    setSchedulerData({
+      ...schedulerData,
+      daysOutValue: [...daysOutTags, nextTag].join(', '),
+    });
+    setDaysOutInput('');
   };
 
-  const removeOption1Tag = (index: number) => {
-    setOption1Tags(option1Tags.filter((_, i) => i !== index));
+  const removeDaysOutTag = (index: number) => {
+    const nextTags = daysOutTags.filter((_, i) => i !== index);
+    setSchedulerData({ ...schedulerData, daysOutValue: nextTags.join(', ') });
   };
 
   const applyCreationMethod = (method: CreationMethod) => {
@@ -707,43 +717,23 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
                   </div>
                 </div>
               ) : (
-                <div className="w-1/3">
-                  <Input
-                    value={schedulerData.daysOutValue}
-                    onChange={(e) => setSchedulerData({ ...schedulerData, daysOutValue: e.target.value })}
-                    placeholder="e.g. 1-10, 20, 25, 25-30"
-                    className="h-7"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">⚠️ Current: Manual parsing required, easy to make syntax errors</p>
-                </div>
-              )}
-            </div>
-
-            {/* DESIGN OPTIONS - Only show when Days Out is selected */}
-            {schedulerData.dateRangeType === 'daysOut' && (
-              <div className="space-y-6 mt-6 pt-6 border-t-2 border-dashed border-gray-300">
-                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border-2 border-[#ff9800] p-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2">📋 Alternative Design Options for Days Out Selection</h4>
-                  <p className="text-xs text-gray-600">Try these improved UI designs below. Choose the one that works best for your workflow.</p>
-                </div>
-
-                {/* OPTION 1: TAG-BASED INPUT */}
-                <div className="bg-white rounded-lg border-2 border-green-500 p-4">
+                <div className="rounded-lg border border-gray-200 bg-white p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-900">Option 1: Tag-Based Input</h4>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">Recommended</span>
+                    <h4 className="text-sm font-semibold text-gray-900">Days Out</h4>
                   </div>
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2 min-h-[32px]">
-                      {option1Tags.map((tag, index) => (
+                      {daysOutTags.map((tag, index) => (
                         <div
-                          key={index}
+                          key={`${tag}-${index}`}
                           className="flex items-center gap-2 px-3 py-1.5 bg-[#fff3e0] border border-[#ff9800] rounded-full text-sm"
                         >
                           <span className="text-gray-700">{tag}</span>
                           <button
-                            onClick={() => removeOption1Tag(index)}
+                            type="button"
+                            onClick={() => removeDaysOutTag(index)}
                             className="text-gray-500 hover:text-gray-700"
+                            aria-label={`Remove ${tag}`}
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -752,25 +742,29 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
                     </div>
                     <div className="flex gap-2">
                       <Input
-                        value={option1Input}
-                        onChange={(e) => setOption1Input(e.target.value)}
+                        value={daysOutInput}
+                        onChange={(e) => setDaysOutInput(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
-                            addOption1Tag();
+                            e.preventDefault();
+                            addDaysOutTag();
                           }
                         }}
                         placeholder="Type range (e.g., 1-10 or 15) and press Enter"
                         className="h-8 flex-1"
                       />
-                      <CustomButton variant="outline" onClick={addOption1Tag}>
+                      <CustomButton
+                        variant="outline"
+                        type="button"
+                        onClick={() => addDaysOutTag()}
+                      >
                         <Plus className="w-4 h-4" />
                       </CustomButton>
                     </div>
-                    <p className="text-xs text-green-600">✅ Benefits: Visual feedback, easy to remove individual ranges, clear value display</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* DAYS OF WEEK */}
@@ -1351,6 +1345,17 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
                   </div>
                   <div className="flex items-start space-x-2">
                     <Checkbox
+                      id="tethered-cars"
+                      checked={schedulerData.submitToTetheredCars}
+                      onCheckedChange={(checked) => setSchedulerData({ ...schedulerData, submitToTetheredCars: checked as boolean })}
+                      className="border-[#ff9800] data-[state=checked]:bg-[#ff9800] mt-0.5 flex-shrink-0"
+                    />
+                    <label htmlFor="tethered-cars" className="text-xs text-gray-700 cursor-pointer leading-tight">
+                      Submit to tethered cars
+                    </label>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <Checkbox
                       id="rates-different"
                       checked={schedulerData.submitOnlyRatesDifferent}
                       onCheckedChange={(checked) => setSchedulerData({ ...schedulerData, submitOnlyRatesDifferent: checked as boolean })}
@@ -1369,17 +1374,6 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
                     />
                     <label htmlFor="extra-hour-day-rates" className="text-xs text-gray-700 cursor-pointer leading-tight">
                       Submit extra hour and day rates
-                    </label>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <Checkbox
-                      id="tethered-cars"
-                      checked={schedulerData.submitToTetheredCars}
-                      onCheckedChange={(checked) => setSchedulerData({ ...schedulerData, submitToTetheredCars: checked as boolean })}
-                      className="border-[#ff9800] data-[state=checked]:bg-[#ff9800] mt-0.5 flex-shrink-0"
-                    />
-                    <label htmlFor="tethered-cars" className="text-xs text-gray-700 cursor-pointer leading-tight">
-                      Submit to tethered cars
                     </label>
                   </div>
                   <div className="flex items-start space-x-2">

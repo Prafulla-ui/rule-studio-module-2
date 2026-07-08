@@ -13,6 +13,9 @@ import { MultiSelect } from './MultiSelect';
 
 export type SchedulerFilterState = {
   scheduleName: string[];
+  startDate: string[];
+  occurrence: string[];
+  scheduleTime: string[];
   pickupLocation: string[];
   dropoffLocation: string[];
   productCode: string[];
@@ -31,6 +34,9 @@ export type SchedulerFilterOptions = {
 
 export const emptySchedulerFilters = (): SchedulerFilterState => ({
   scheduleName: [],
+  startDate: [],
+  occurrence: [],
+  scheduleTime: [],
   pickupLocation: [],
   dropoffLocation: [],
   productCode: [],
@@ -45,6 +51,9 @@ export const emptySchedulerFilters = (): SchedulerFilterState => ({
 
 const FILTER_FIELDS: { key: keyof SchedulerFilterState; label: string; placeholder: string }[] = [
   { key: 'scheduleName', label: 'Schedule Name', placeholder: 'Select schedule names' },
+  { key: 'startDate', label: 'Start Date', placeholder: 'Select start dates' },
+  { key: 'occurrence', label: 'Occurrence', placeholder: 'Select occurrences' },
+  { key: 'scheduleTime', label: 'Schedule Time', placeholder: 'Select schedule times' },
   { key: 'pickupLocation', label: 'PickUp Location', placeholder: 'Select pickup locations' },
   { key: 'dropoffLocation', label: 'Dropoff Location', placeholder: 'Select dropoff locations' },
   { key: 'productCode', label: 'Product Code', placeholder: 'Select product codes' },

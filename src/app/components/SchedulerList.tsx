@@ -11,6 +11,7 @@ import {
 } from './SchedulerFilterDrawer';
 import { Switch } from './ui/switch';
 import { Checkbox } from './ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner@2.0.3';
 import {
   AlertDialog,
@@ -91,6 +92,12 @@ function getSchedulerFieldValues(scheduler: any, field: keyof SchedulerFilterSta
   switch (field) {
     case 'scheduleName':
       return scheduler.scheduleName ? [scheduler.scheduleName] : [];
+    case 'startDate':
+      return scheduler.startDate ? [scheduler.startDate] : [];
+    case 'occurrence':
+      return scheduler.endAfterOccurrences ? [String(scheduler.endAfterOccurrences)] : [];
+    case 'scheduleTime':
+      return scheduler.scheduleTime ? [scheduler.scheduleTime] : [];
     case 'pickupLocation':
       return normalizeValues(scheduler.pickupLocation);
     case 'dropoffLocation':
@@ -161,10 +168,27 @@ function countActiveFilterFields(filters: SchedulerFilterState): number {
   return Object.values(filters).filter((values) => values.length > 0).length;
 }
 
+const FILTER_LABELS: Record<keyof SchedulerFilterState, string> = {
+  scheduleName: 'Schedule Name',
+  startDate: 'Start Date',
+  occurrence: 'Occurrence',
+  scheduleTime: 'Schedule Time',
+  pickupLocation: 'PickUp',
+  dropoffLocation: 'Dropoff',
+  productCode: 'Product Code',
+  lor: 'LOR',
+  carCode: 'Car Code',
+  dataSource: 'Data Source',
+  dateRangeFixed: 'Date Range Fixed',
+  dateRangeDaysOut: 'Days Out',
+  pickupTime: 'PickUp Time',
+  dropoffTime: 'Dropoff Time',
+};
+
 const STICKY_COL_CHECKBOX = 'sticky left-0 z-20 w-[52px] min-w-[52px]';
-const STICKY_COL_NAME = 'sticky left-[52px] z-20 min-w-[200px]';
+const STICKY_COL_NAME = 'sticky left-[52px] z-20 w-[200px] min-w-[200px] max-w-[200px]';
 const STICKY_COL_CHECKBOX_HEAD = 'sticky left-0 z-30 w-[52px] min-w-[52px]';
-const STICKY_COL_NAME_HEAD = 'sticky left-[52px] z-30 min-w-[200px]';
+const STICKY_COL_NAME_HEAD = 'sticky left-[52px] z-30 w-[200px] min-w-[200px] max-w-[200px]';
 const STICKY_SHADOW = 'border-r border-gray-200 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]';
 
 function getStickyCellBg(importStatus: Scheduler['importStatus'] | null, isSelected: boolean, isHeader = false): string {
@@ -306,6 +330,16 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
 
   const hasActiveFilters = hasAnyActiveFilters(appliedFilters);
   const activeFilterCount = countActiveFilterFields(appliedFilters);
+  const activeFilterChips = useMemo(() => {
+    const fields = Object.keys(appliedFilters) as (keyof SchedulerFilterState)[];
+    return fields.flatMap((field) =>
+      appliedFilters[field].map((value) => ({
+        field,
+        value,
+        label: `${FILTER_LABELS[field]}: ${value}`,
+      }))
+    );
+  }, [appliedFilters]);
 
   const filteredIds = useMemo(() => filteredSchedulers.map((s) => s.id), [filteredSchedulers]);
   const selectedSchedulers = useMemo(
@@ -419,6 +453,15 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
     setAppliedFilters(empty);
     setDraftFilters(empty);
     setShowNeedsAttentionOnly(false);
+  };
+
+  const handleRemoveFilterChip = (field: keyof SchedulerFilterState, value: string) => {
+    const nextApplied = {
+      ...appliedFilters,
+      [field]: appliedFilters[field].filter((item) => item !== value),
+    };
+    setAppliedFilters(nextApplied);
+    setDraftFilters(nextApplied);
   };
 
   const handleEditClick = (scheduler: Scheduler) => {
@@ -635,6 +678,23 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                 )}
               </p>
             </div>
+
+            {activeFilterChips.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap items-center gap-2">
+                {activeFilterChips.map((chip) => (
+                  <button
+                    key={`${chip.field}-${chip.value}`}
+                    type="button"
+                    onClick={() => handleRemoveFilterChip(chip.field, chip.value)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200 text-xs text-[#a65a00] hover:bg-orange-100 transition-colors"
+                    title="Remove filter"
+                  >
+                    <span>{chip.label}</span>
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {statusTab === 'inactive' && archivableSchedulers.length > 0 && (
@@ -684,12 +744,15 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                   <Edit className="h-3.5 w-3.5" />
                   Bulk Edit
                 </CustomButton>
-                <CustomButton variant="outline" size="sm" onClick={() => handleOpenBulkStatusDialog('activate')}>
-                  Activate
-                </CustomButton>
-                <CustomButton variant="outline" size="sm" onClick={() => handleOpenBulkStatusDialog('deactivate')}>
-                  Deactivate
-                </CustomButton>
+                {statusTab === 'active' ? (
+                  <CustomButton variant="outline" size="sm" onClick={() => handleOpenBulkStatusDialog('deactivate')}>
+                    Deactivate
+                  </CustomButton>
+                ) : (
+                  <CustomButton variant="outline" size="sm" onClick={() => handleOpenBulkStatusDialog('activate')}>
+                    Activate
+                  </CustomButton>
+                )}
                 {statusTab === 'inactive' && selectedArchivableIds.length > 0 && (
                   <CustomButton
                     variant="outline"
@@ -826,20 +889,24 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                       className="border-[#ff9800] data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
                     />
                   </td>
-                  <td className={`px-4 py-3 text-sm text-gray-900 whitespace-nowrap ${STICKY_COL_NAME} ${STICKY_SHADOW} ${stickyBg} ${stickyHover}`}>
-                    <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
-                      <span
-                        className="inline-block max-w-[280px] truncate align-middle font-medium"
-                        title={scheduler.name}
-                      >
-                        {scheduler.name}
-                      </span>
+                  <td className={`px-4 py-3 text-sm text-gray-900 ${STICKY_COL_NAME} ${STICKY_SHADOW} ${stickyBg} ${stickyHover}`}>
+                    <div className="flex items-center gap-2 min-w-0 w-full overflow-hidden">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="min-w-0 flex-1 truncate font-medium text-left">
+                            {scheduler.name}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-sm break-words">
+                          {scheduler.name}
+                        </TooltipContent>
+                      </Tooltip>
                       {needsAttention && (
                         <button
                           type="button"
                           onClick={() => handleNeedsAttentionClick(scheduler)}
                           title={scheduler.importValidationErrors.slice(0, 3).join('\n')}
-                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300 hover:bg-red-200 transition-colors"
+                          className="inline-flex shrink-0 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300 hover:bg-red-200 transition-colors"
                         >
                           <AlertTriangle className="h-3 w-3 text-red-600" />
                           Needs attention
@@ -949,7 +1016,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
           if (!open) handleCloseBulkStatusDialog();
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="overflow-hidden">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {pendingBulkStatus === 'activate'
@@ -958,7 +1025,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
             </AlertDialogTitle>
           </AlertDialogHeader>
 
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <AlertDialogDescription>
               {pendingBulkStatus === 'activate'
                 ? 'You are about to activate the selected schedulers.'
@@ -1020,11 +1087,13 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
             })()}
 
             {selectedSchedulers.length > 0 && (
-              <div className="text-sm">
+              <div className="text-sm min-w-0 overflow-hidden">
                 <p className="text-gray-700 font-medium mb-2">Selected schedulers:</p>
-                <ul className="space-y-1 text-gray-600 ml-4 list-disc max-h-24 overflow-y-auto">
+                <ul className="space-y-1 text-gray-600 ml-4 list-disc max-h-24 overflow-y-auto overflow-x-hidden pr-1">
                   {selectedSchedulers.slice(0, 5).map((scheduler) => (
-                    <li key={scheduler.id}>{scheduler.name}</li>
+                    <li key={scheduler.id} className="break-words">
+                      {scheduler.name}
+                    </li>
                   ))}
                 </ul>
                 {selectedSchedulers.length > 5 && (
@@ -1057,16 +1126,16 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
           if (!open) handleCloseSingleStatusDialog();
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="overflow-hidden">
           <AlertDialogHeader>
-            <AlertDialogTitle>
+            <AlertDialogTitle className="break-words">
               {pendingSingleStatus?.action === 'activate'
                 ? `Activate scheduler: ${pendingSingleStatus.name}?`
                 : `Deactivate scheduler: ${pendingSingleStatus?.name ?? 'Scheduler'}?`}
             </AlertDialogTitle>
           </AlertDialogHeader>
 
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <AlertDialogDescription>
               {pendingSingleStatus?.action === 'activate'
                 ? 'You are about to activate this scheduler.'
@@ -1115,14 +1184,14 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="overflow-hidden">
           <AlertDialogHeader>
             <AlertDialogTitle>
               Archive {pendingArchiveIds.length} scheduler{pendingArchiveIds.length === 1 ? '' : 's'}?
             </AlertDialogTitle>
           </AlertDialogHeader>
 
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <AlertDialogDescription>
               Archived schedulers are removed from this list but kept for historical reference. They will not run or appear in active workflows.
             </AlertDialogDescription>
@@ -1137,11 +1206,13 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
             </div>
 
             {pendingArchiveSchedulers.length > 0 && (
-              <div className="text-sm">
+              <div className="text-sm min-w-0 overflow-hidden">
                 <p className="text-gray-700 font-medium mb-2">Schedulers to archive:</p>
-                <ul className="space-y-1 text-gray-600 ml-4 list-disc max-h-24 overflow-y-auto">
+                <ul className="space-y-1 text-gray-600 ml-4 list-disc max-h-24 overflow-y-auto overflow-x-hidden pr-1">
                   {pendingArchiveSchedulers.slice(0, 5).map((scheduler) => (
-                    <li key={scheduler.id}>{scheduler.name}</li>
+                    <li key={scheduler.id} className="break-words">
+                      {scheduler.name}
+                    </li>
                   ))}
                 </ul>
                 {pendingArchiveSchedulers.length > 5 && (

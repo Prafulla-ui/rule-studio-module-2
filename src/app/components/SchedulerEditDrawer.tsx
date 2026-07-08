@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
 import {
   Drawer,
   DrawerClose,
@@ -73,21 +73,55 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
     customFrequency: 'days',
     customInterval: '1',
     emailAddresses: '',
-    submitRatesToTetheredLocations: false,
-    submitToTetheredProducts: false,
+    submitRatesToTetheredLocations: true,
+    submitToTetheredProducts: true,
     submitOnlyRatesDifferent: false,
     submitExtraHourAndDayRates: false,
-    submitToTetheredCars: false,
+    submitToTetheredCars: true,
     submitToAllLORs: false,
     scheduleIsActive: true,
     overrideBlockedDates: false,
-    notifyEmailAfter: false,
-    notifyEmailValue: ''
+    notifyEmailAfter: true,
+    notifyEmailValue: '180'
   });
+
+  const [daysOutInput, setDaysOutInput] = useState('');
+  const daysOutTags = schedulerData.daysOutValue
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+  const addDaysOutTag = (rawValue?: string) => {
+    const nextTag = (rawValue ?? daysOutInput).trim();
+    if (!nextTag) return;
+    if (daysOutTags.includes(nextTag)) {
+      setDaysOutInput('');
+      return;
+    }
+    setSchedulerData({
+      ...schedulerData,
+      daysOutValue: [...daysOutTags, nextTag].join(', '),
+    });
+    setDaysOutInput('');
+  };
+
+  const removeDaysOutTag = (index: number) => {
+    const nextTags = daysOutTags.filter((_, i) => i !== index);
+    setSchedulerData({ ...schedulerData, daysOutValue: nextTags.join(', ') });
+  };
 
   useEffect(() => {
     if (isOpen && scheduler) {
-      setSchedulerData(scheduler);
+      setDaysOutInput('');
+      setSchedulerData({
+        ...scheduler,
+        submitRatesToTetheredLocations: true,
+        submitToTetheredProducts: true,
+        submitToTetheredCars: true,
+        scheduleIsActive: true,
+        notifyEmailAfter: true,
+        notifyEmailValue: scheduler.notifyEmailValue || '180',
+      });
     }
   }, [isOpen, scheduler]);
 
@@ -518,13 +552,51 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   </div>
                 </div>
               ) : (
-                <div className="w-1/3">
-                  <Input
-                    value={schedulerData.daysOutValue}
-                    onChange={(e) => setSchedulerData({ ...schedulerData, daysOutValue: e.target.value })}
-                    placeholder="e.g. 1-10, 20, 25, 25-30"
-                    className="h-7"
-                  />
+                <div className="rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Days Out</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2 min-h-[32px]">
+                      {daysOutTags.map((tag, index) => (
+                        <div
+                          key={`${tag}-${index}`}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-[#fff3e0] border border-[#ff9800] rounded-full text-sm"
+                        >
+                          <span className="text-gray-700">{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeDaysOutTag(index)}
+                            className="text-gray-500 hover:text-gray-700"
+                            aria-label={`Remove ${tag}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={daysOutInput}
+                        onChange={(e) => setDaysOutInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addDaysOutTag();
+                          }
+                        }}
+                        placeholder="Type range (e.g., 1-10 or 15) and press Enter"
+                        className="h-8 flex-1"
+                      />
+                      <CustomButton
+                        variant="outline"
+                        type="button"
+                        onClick={() => addDaysOutTag()}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </CustomButton>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1108,6 +1180,17 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   </div>
                   <div className="flex items-start space-x-2">
                     <Checkbox
+                      id="tethered-cars-edit"
+                      checked={schedulerData.submitToTetheredCars}
+                      onCheckedChange={(checked) => setSchedulerData({ ...schedulerData, submitToTetheredCars: checked as boolean })}
+                      className="border-[#ff9800] data-[state=checked]:bg-[#ff9800] mt-0.5 flex-shrink-0"
+                    />
+                    <label htmlFor="tethered-cars-edit" className="text-xs text-gray-700 cursor-pointer leading-tight">
+                      Submit to tethered cars
+                    </label>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <Checkbox
                       id="rates-different-edit"
                       checked={schedulerData.submitOnlyRatesDifferent}
                       onCheckedChange={(checked) => setSchedulerData({ ...schedulerData, submitOnlyRatesDifferent: checked as boolean })}
@@ -1126,17 +1209,6 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                     />
                     <label htmlFor="extra-hour-day-rates-edit" className="text-xs text-gray-700 cursor-pointer leading-tight">
                       Submit extra hour and day rates
-                    </label>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <Checkbox
-                      id="tethered-cars-edit"
-                      checked={schedulerData.submitToTetheredCars}
-                      onCheckedChange={(checked) => setSchedulerData({ ...schedulerData, submitToTetheredCars: checked as boolean })}
-                      className="border-[#ff9800] data-[state=checked]:bg-[#ff9800] mt-0.5 flex-shrink-0"
-                    />
-                    <label htmlFor="tethered-cars-edit" className="text-xs text-gray-700 cursor-pointer leading-tight">
-                      Submit to tethered cars
                     </label>
                   </div>
                   <div className="flex items-start space-x-2">
