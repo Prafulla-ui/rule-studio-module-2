@@ -117,8 +117,6 @@ function getSchedulerFieldValues(scheduler: any, field: keyof SchedulerFilterSta
       return scheduler.pickupTime ? [scheduler.pickupTime] : [];
     case 'dropoffTime':
       return scheduler.dropoffTime ? [scheduler.dropoffTime] : [];
-    case 'dataStatus':
-      return scheduler.importStatus === 'needs_attention' ? ['Needs attention'] : ['Complete'];
     default:
       return [];
   }
@@ -128,11 +126,8 @@ function buildFilterOptions(schedulers: any[]): SchedulerFilterOptions {
   const options = emptySchedulerFilters();
   const fields = Object.keys(options) as (keyof SchedulerFilterState)[];
 
-  options.dataStatus = ['Needs attention', 'Complete'];
-
   schedulers.forEach((scheduler) => {
     fields.forEach((field) => {
-      if (field === 'dataStatus') return;
       getSchedulerFieldValues(scheduler, field).forEach((value) => {
         if (value && !options[field].includes(value)) {
           options[field].push(value);
@@ -772,33 +767,32 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                     className="border-[#ff9800] data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800] data-[state=indeterminate]:bg-[#ff9800] data-[state=indeterminate]:border-[#ff9800]"
                   />
                 </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap ${STICKY_COL_NAME_HEAD} ${STICKY_SHADOW} bg-gray-50`}>Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Data Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Created Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Submission Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Rate Basis</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Pickup</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Dropoff</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">LOR</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Pickup Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Dropoff Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Product Code</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Car Codes</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Days of week</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Source</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Fixed Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Days Out</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Next Run</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Update Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Recurrence</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap w-[10%]">Action</th>
+                <th className={`px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap ${STICKY_COL_NAME_HEAD} ${STICKY_SHADOW} bg-gray-50`}>Name</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Created Date</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Submission Type</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Rate Basis</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Pickup</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Dropoff</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">LOR</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Pickup Time</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Dropoff Time</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Product Code</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Car Codes</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Days of week</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Source</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Fixed Date</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Days Out</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Next Run</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Update Time</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Recurrence</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap w-[10%]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredSchedulers.length === 0 ? (
                 <tr>
-                  <td colSpan={22} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={21} className="px-4 py-12 text-center text-gray-500">
                     No {statusTab} schedulers found.
                     {(searchQuery || hasActiveFilters) && ' Try adjusting your search or filters.'}
                   </td>
@@ -833,25 +827,34 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                     />
                   </td>
                   <td className={`px-4 py-3 text-sm text-gray-900 whitespace-nowrap ${STICKY_COL_NAME} ${STICKY_SHADOW} ${stickyBg} ${stickyHover}`}>
-                    <span className="inline-flex items-center gap-1.5">
-                      {scheduler.name}
+                    <div className="inline-flex items-center gap-2 min-w-0 max-w-full">
+                      <span
+                        className="inline-block max-w-[280px] truncate align-middle font-medium"
+                        title={scheduler.name}
+                      >
+                        {scheduler.name}
+                      </span>
                       {needsAttention && (
-                        <AlertTriangle className="h-3.5 w-3.5 text-red-600 shrink-0" title="Needs attention" />
+                        <button
+                          type="button"
+                          onClick={() => handleNeedsAttentionClick(scheduler)}
+                          title={scheduler.importValidationErrors.slice(0, 3).join('\n')}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300 hover:bg-red-200 transition-colors"
+                        >
+                          <AlertTriangle className="h-3 w-3 text-red-600" />
+                          Needs attention
+                        </button>
                       )}
-                    </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    {needsAttention ? (
-                      <button
-                        type="button"
-                        onClick={() => handleNeedsAttentionClick(scheduler)}
-                        title={scheduler.importValidationErrors.slice(0, 3).join('\n')}
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300 hover:bg-red-200 transition-colors"
-                      >
-                        <AlertTriangle className="h-3 w-3 text-red-600" />
-                        Needs attention
-                      </button>
-                    ) : null}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      scheduler.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {scheduler.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.createdDate}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.submissionType}</td>
@@ -872,15 +875,6 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.nextRun}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.updateTime}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.recurrence}</td>
-                  <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      scheduler.isActive 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {scheduler.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Switch

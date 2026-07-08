@@ -23,7 +23,6 @@ export type SchedulerFilterState = {
   dateRangeDaysOut: string[];
   pickupTime: string[];
   dropoffTime: string[];
-  dataStatus: string[];
 };
 
 export type SchedulerFilterOptions = {
@@ -42,7 +41,6 @@ export const emptySchedulerFilters = (): SchedulerFilterState => ({
   dateRangeDaysOut: [],
   pickupTime: [],
   dropoffTime: [],
-  dataStatus: [],
 });
 
 const FILTER_FIELDS: { key: keyof SchedulerFilterState; label: string; placeholder: string }[] = [
@@ -104,15 +102,6 @@ export function SchedulerFilterDrawer({
 
           <div className="flex-1 overflow-y-auto px-6 py-6 bg-white">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-[#666666] mb-1.5">Data Status</label>
-                <MultiSelect
-                  value={draftFilters.dataStatus}
-                  onChange={(value) => updateField('dataStatus', value)}
-                  options={['Needs attention', 'Complete']}
-                  placeholder="Select data status"
-                />
-              </div>
               {FILTER_FIELDS.map(({ key, label, placeholder }) => (
                 <div key={key}>
                   <label className="block text-xs text-[#666666] mb-1.5">{label}</label>
