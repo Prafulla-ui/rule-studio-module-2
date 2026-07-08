@@ -20,6 +20,7 @@ import { CustomSelect } from './CustomSelect';
 import {
   Popover,
   PopoverContent,
+  PopoverScrollArea,
   PopoverTrigger,
 } from "./ui/popover";
 
@@ -610,8 +611,8 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
                               <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0 ml-2" />
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3" align="start">
-                            <div className="space-y-2">
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" align="start">
+                            <PopoverScrollArea className="space-y-2">
                               {optionsForSelect.map((option) => (
                                 <div
                                   key={option}
@@ -626,7 +627,7 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
                                   <span className="text-sm text-gray-900">{option}</span>
                                 </div>
                               ))}
-                            </div>
+                            </PopoverScrollArea>
                           </PopoverContent>
                         </Popover>
                       </div>
@@ -690,8 +691,8 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
                               <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0 ml-2" />
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3" align="start">
-                            <div className="space-y-2">
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" align="start">
+                            <PopoverScrollArea className="space-y-2">
                               {optionsForSelect.map((option) => (
                                 <div
                                   key={option}
@@ -706,7 +707,7 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
                                   <span className="text-sm text-gray-900">{option}</span>
                                 </div>
                               ))}
-                            </div>
+                            </PopoverScrollArea>
                           </PopoverContent>
                         </Popover>
                       </div>

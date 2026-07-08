@@ -6,6 +6,7 @@ import { CustomButton } from './CustomButton';
 import {
   Popover,
   PopoverContent,
+  PopoverScrollArea,
   PopoverTrigger,
 } from "./ui/popover";
 
@@ -209,7 +210,7 @@ export function ScheduleEditDrawer({ open, onOpenChange, schedule, onSave, rules
                   </button>
                 </PopoverTrigger>
                 <PopoverContent 
-                  className="w-[--radix-popover-trigger-width] p-2" 
+                  className="w-[--radix-popover-trigger-width] p-2 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" 
                   align="start"
                   onOpenAutoFocus={(e) => e.preventDefault()}
                   onInteractOutside={(e) => {
@@ -219,7 +220,7 @@ export function ScheduleEditDrawer({ open, onOpenChange, schedule, onSave, rules
                     }
                   }}
                 >
-                  <div className="space-y-1">
+                  <PopoverScrollArea className="space-y-1">
                     {rules.filter(rule => rule.status === 'Scheduled').map(rule => (
                       <div
                         key={rule.id}
@@ -238,7 +239,7 @@ export function ScheduleEditDrawer({ open, onOpenChange, schedule, onSave, rules
                     {rules.filter(rule => rule.status === 'Scheduled').length === 0 && (
                       <div className="p-2 text-sm text-gray-500">No scheduled rules available</div>
                     )}
-                  </div>
+                  </PopoverScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
@@ -259,7 +260,7 @@ export function ScheduleEditDrawer({ open, onOpenChange, schedule, onSave, rules
                   </button>
                 </PopoverTrigger>
                 <PopoverContent 
-                  className="w-[--radix-popover-trigger-width] p-2" 
+                  className="w-[--radix-popover-trigger-width] p-2 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" 
                   align="start"
                   onOpenAutoFocus={(e) => e.preventDefault()}
                   onInteractOutside={(e) => {
@@ -269,7 +270,7 @@ export function ScheduleEditDrawer({ open, onOpenChange, schedule, onSave, rules
                     }
                   }}
                 >
-                  <div className="space-y-1">
+                  <PopoverScrollArea className="space-y-1">
                     {schedulerOptions.map(scheduler => (
                       <div
                         key={scheduler}
@@ -285,7 +286,7 @@ export function ScheduleEditDrawer({ open, onOpenChange, schedule, onSave, rules
                         <span className="text-sm text-gray-900">{scheduler}</span>
                       </div>
                     ))}
-                  </div>
+                  </PopoverScrollArea>
                 </PopoverContent>
               </Popover>
             </div>

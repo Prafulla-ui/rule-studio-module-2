@@ -45,4 +45,24 @@ function PopoverAnchor({
   return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />;
 }
 
-export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor };
+function PopoverScrollArea({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "min-h-0 overflow-y-auto overscroll-contain max-h-[min(280px,var(--radix-popover-content-available-height,280px))]",
+        className,
+      )}
+      onWheel={(event) => event.stopPropagation()}
+      onTouchMove={(event) => event.stopPropagation()}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor, PopoverScrollArea };

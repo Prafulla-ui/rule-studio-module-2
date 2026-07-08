@@ -23,6 +23,7 @@ import {
   parseMockExcelImport,
   type ImportSummary,
 } from '../utils/schedulerImportValidation';
+import { TIME_12H_SELECT_OPTIONS, normalizeTimeTo12Hour } from '../utils/timeFormat';
 
 type CreationMethod = 'manual' | 'import';
 
@@ -241,6 +242,8 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
         ...selectedScheduler,
         selectedSchedule: scheduleId,
         scheduleName: selectedScheduler.scheduleName || '',
+        pickupTime: normalizeTimeTo12Hour(selectedScheduler.pickupTime || ''),
+        dropoffTime: normalizeTimeTo12Hour(selectedScheduler.dropoffTime || ''),
       });
     } else {
       // Clear selection
@@ -786,22 +789,20 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs text-[#666666] mb-1.5">Pick-up Time</label>
-                  <Input
-                    type="time"
+                  <CustomSelect
                     value={schedulerData.pickupTime}
-                    onChange={(e) => setSchedulerData({ ...schedulerData, pickupTime: e.target.value })}
-                    placeholder="HH:MM"
-                    className="h-7"
+                    onChange={(value) => setSchedulerData({ ...schedulerData, pickupTime: value })}
+                    options={TIME_12H_SELECT_OPTIONS}
+                    placeholder="Select time"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-[#666666] mb-1.5">Dropoff Time</label>
-                  <Input
-                    type="time"
+                  <CustomSelect
                     value={schedulerData.dropoffTime}
-                    onChange={(e) => setSchedulerData({ ...schedulerData, dropoffTime: e.target.value })}
-                    placeholder="HH:MM"
-                    className="h-7"
+                    onChange={(value) => setSchedulerData({ ...schedulerData, dropoffTime: value })}
+                    options={TIME_12H_SELECT_OPTIONS}
+                    placeholder="Select time"
                   />
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Popover, PopoverContent, PopoverScrollArea, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 
 interface MultiSelectProps {
@@ -43,8 +43,15 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
   const allFilteredSelected = filteredOptions.length > 0 && 
     filteredOptions.every(option => value.includes(option));
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      setSearchQuery('');
+    }
+  };
+
   return (
-    <Popover open={isOpen && !disabled} onOpenChange={setIsOpen} modal={false}>
+    <Popover open={isOpen && !disabled} onOpenChange={handleOpenChange} modal={false}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -61,37 +68,42 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
           <ChevronDown className={`h-4 w-4 flex-shrink-0 ml-2 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-3" align="start">
-        {/* Search Input */}
-        <div className="relative mb-2">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
-            className="w-full h-7 pl-8 pr-3 text-xs border border-gray-300 rounded focus:outline-none focus:border-[#ff9800]"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-
-        {/* Select All */}
-        <div className="border-b border-gray-200 mb-2 pb-2">
-          <div
-            className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-            onClick={handleSelectAll}
-          >
-            <Checkbox
-              checked={allFilteredSelected}
-              onCheckedChange={handleSelectAll}
-              className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]"
+        align="start"
+      >
+        <div className="shrink-0">
+          {/* Search Input */}
+          <div className="relative mb-2">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full h-7 pl-8 pr-3 text-xs border border-gray-300 rounded focus:outline-none focus:border-[#ff9800]"
+              onClick={(e) => e.stopPropagation()}
             />
-            <span className="text-xs text-[#ff9800] hover:text-[#f57c00] transition-colors">Select All</span>
+          </div>
+
+          {/* Select All */}
+          <div className="border-b border-gray-200 mb-2 pb-2">
+            <div
+              className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
+              onClick={handleSelectAll}
+            >
+              <Checkbox
+                checked={allFilteredSelected}
+                onCheckedChange={handleSelectAll}
+                className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
+              />
+              <span className="text-xs text-[#ff9800] hover:text-[#f57c00] transition-colors">Select All</span>
+            </div>
           </div>
         </div>
 
         {/* Options List */}
-        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+        <PopoverScrollArea className="flex-1 space-y-2 pr-1 -mr-1">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option) => (
               <div
@@ -110,7 +122,7 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
           ) : (
             <div className="text-xs text-gray-500 text-center py-2">No results found</div>
           )}
-        </div>
+        </PopoverScrollArea>
       </PopoverContent>
     </Popover>
   );

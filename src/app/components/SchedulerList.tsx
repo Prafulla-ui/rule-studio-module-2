@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { CustomButton } from './CustomButton';
 import { Filter, Search, Calendar, Info, Plus, Edit, ChevronsRight, ChevronsLeft, X, AlertTriangle, Archive } from 'lucide-react';
 import { SchedulerEditDrawer } from './SchedulerEditDrawer';
@@ -13,6 +13,7 @@ import { Switch } from './ui/switch';
 import { Checkbox } from './ui/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner@2.0.3';
+import { normalizeTimeTo12Hour } from '../utils/timeFormat';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -121,9 +122,9 @@ function getSchedulerFieldValues(scheduler: any, field: keyof SchedulerFilterSta
       }
       return [];
     case 'pickupTime':
-      return scheduler.pickupTime ? [scheduler.pickupTime] : [];
+      return scheduler.pickupTime ? [normalizeTimeTo12Hour(scheduler.pickupTime)] : [];
     case 'dropoffTime':
-      return scheduler.dropoffTime ? [scheduler.dropoffTime] : [];
+      return scheduler.dropoffTime ? [normalizeTimeTo12Hour(scheduler.dropoffTime)] : [];
     default:
       return [];
   }
@@ -228,6 +229,8 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
   const [draftFilters, setDraftFilters] = useState<SchedulerFilterState>(emptySchedulerFilters());
   const [appliedFilters, setAppliedFilters] = useState<SchedulerFilterState>(emptySchedulerFilters());
   const [showNeedsAttentionOnly, setShowNeedsAttentionOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const filterOptions = useMemo(() => buildFilterOptions(schedulers.filter((s) => !s.isArchived)), [schedulers]);
 
@@ -269,8 +272,8 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
       pickup: Array.isArray(scheduler.pickupLocation) ? scheduler.pickupLocation.join(', ') : scheduler.pickupLocation,
       dropoff: Array.isArray(scheduler.dropOffLocation) ? scheduler.dropOffLocation.join(', ') : scheduler.dropOffLocation,
       lor: Array.isArray(scheduler.lorCode) ? scheduler.lorCode.join(', ') : scheduler.lorCode,
-      pickupTime: scheduler.pickupTime,
-      dropoffTime: scheduler.dropoffTime,
+      pickupTime: normalizeTimeTo12Hour(scheduler.pickupTime || ''),
+      dropoffTime: normalizeTimeTo12Hour(scheduler.dropoffTime || ''),
       productCode: Array.isArray(scheduler.productCode) ? scheduler.productCode.join(', ') : scheduler.productCode,
       carCodes: Array.isArray(scheduler.carCode) ? scheduler.carCode.join(',') : scheduler.carCode,
       daysOfWeek: Array.isArray(scheduler.daysOfWeek) ? scheduler.daysOfWeek.join(',') : scheduler.daysOfWeek,
@@ -327,6 +330,20 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
       return schedulerMatchesFilters(raw, appliedFilters);
     });
   }, [mappedSchedulers, schedulers, searchQuery, appliedFilters, showNeedsAttentionOnly, statusTab]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSchedulers.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedSchedulers = filteredSchedulers.slice(startIndex, startIndex + itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, appliedFilters, statusTab, showNeedsAttentionOnly, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const hasActiveFilters = hasAnyActiveFilters(appliedFilters);
   const activeFilterCount = countActiveFilterFields(appliedFilters);
@@ -669,8 +686,9 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                 </button>
               </div>
               <p className="text-sm text-[#666666]">
-                Showing {filteredSchedulers.length} of {statusTab === 'active' ? activeCount : inactiveCount}{' '}
-                {statusTab} scheduler{filteredSchedulers.length === 1 ? '' : 's'}
+                {filteredSchedulers.length === 0
+                  ? `Showing 0 of ${statusTab === 'active' ? activeCount : inactiveCount} ${statusTab} schedulers`
+                  : `Showing ${startIndex + 1} - ${Math.min(startIndex + itemsPerPage, filteredSchedulers.length)} of ${filteredSchedulers.length} ${statusTab} scheduler${filteredSchedulers.length === 1 ? '' : 's'}`}
                 {hasActiveFilters && (
                   <span className="text-[#ff9800]">
                     {' '}· {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'} applied
@@ -861,7 +879,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                   </td>
                 </tr>
               ) : (
-              filteredSchedulers.map((scheduler) => {
+              paginatedSchedulers.map((scheduler) => {
                 const isSelected = selectedIds.includes(scheduler.id);
                 const needsAttention = scheduler.importStatus === 'needs_attention';
                 const stickyBg = getStickyCellBg(scheduler.importStatus, isSelected);
@@ -973,6 +991,77 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
             </tbody>
           </table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">Items per page:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                    className="h-8 px-2 bg-white border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#ff9800] focus:border-[#ff9800]"
+                  >
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-700">
+                    {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredSchedulers.length)} of {filteredSchedulers.length}
+                  </span>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 px-3 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`h-8 w-8 rounded text-sm flex items-center justify-center ${
+                            currentPage === pageNum
+                              ? 'bg-[#ff9800] text-white'
+                              : 'bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 px-3 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

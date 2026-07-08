@@ -16,6 +16,7 @@ import { Checkbox } from './ui/checkbox';
 import {
   Popover,
   PopoverContent,
+  PopoverScrollArea,
   PopoverTrigger,
 } from "./ui/popover";
 
@@ -256,7 +257,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                       </button>
                     </PopoverTrigger>
                     <PopoverContent 
-                      className="w-[--radix-popover-trigger-width] p-3" 
+                      className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]"
                       align="start"
                       onOpenAutoFocus={(e) => e.preventDefault()}
                       onInteractOutside={(e) => {
@@ -266,7 +267,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                         }
                       }}
                     >
-                      <div className="space-y-2">
+                      <PopoverScrollArea className="space-y-2">
                         {locations.map((loc) => (
                           <div
                             key={loc}
@@ -285,7 +286,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                             <span className="text-sm text-gray-900">{loc}</span>
                           </div>
                         ))}
-                      </div>
+                      </PopoverScrollArea>
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -307,7 +308,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                       </button>
                     </PopoverTrigger>
                     <PopoverContent 
-                      className="w-[--radix-popover-trigger-width] p-3" 
+                      className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]"
                       align="start"
                       onOpenAutoFocus={(e) => e.preventDefault()}
                       onInteractOutside={(e) => {
@@ -317,7 +318,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                         }
                       }}
                     >
-                      <div className="space-y-2">
+                      <PopoverScrollArea className="space-y-2">
                         {productTypes.map((type) => (
                           <div
                             key={type}
@@ -336,7 +337,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                             <span className="text-sm text-gray-900">{type}</span>
                           </div>
                         ))}
-                      </div>
+                      </PopoverScrollArea>
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -358,7 +359,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                       </button>
                     </PopoverTrigger>
                     <PopoverContent 
-                      className="w-[--radix-popover-trigger-width] p-3" 
+                      className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]"
                       align="start"
                       onOpenAutoFocus={(e) => e.preventDefault()}
                       onInteractOutside={(e) => {
@@ -368,7 +369,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                         }
                       }}
                     >
-                      <div className="space-y-2">
+                      <PopoverScrollArea className="space-y-2">
                         {lorOptions.map((lor) => (
                           <div
                             key={lor}
@@ -387,7 +388,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                             <span className="text-sm text-gray-900">{lor}</span>
                           </div>
                         ))}
-                      </div>
+                      </PopoverScrollArea>
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -409,7 +410,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                       </button>
                     </PopoverTrigger>
                     <PopoverContent 
-                      className="w-[--radix-popover-trigger-width] p-3" 
+                      className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]"
                       align="start"
                       onOpenAutoFocus={(e) => e.preventDefault()}
                       onInteractOutside={(e) => {
@@ -419,7 +420,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                         }
                       }}
                     >
-                      <div className="space-y-2">
+                      <PopoverScrollArea className="space-y-2">
                         {fleetTypes.map((type) => (
                           <div
                             key={type}
@@ -438,7 +439,7 @@ export function RuleScheduleDrawer({ open, onOpenChange, rule, onSave }: RuleSch
                             <span className="text-sm text-gray-900">{type}</span>
                           </div>
                         ))}
-                      </div>
+                      </PopoverScrollArea>
                     </PopoverContent>
                   </Popover>
                 </div>

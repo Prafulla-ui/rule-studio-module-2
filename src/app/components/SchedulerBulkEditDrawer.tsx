@@ -14,6 +14,7 @@ import { CustomSelect } from './CustomSelect';
 import { MultiSelect } from './MultiSelect';
 import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { TIME_12H_SELECT_OPTIONS } from '../utils/timeFormat';
 
 const NO_CHANGE = '__no_change__';
 
@@ -676,20 +677,20 @@ export function SchedulerBulkEditDrawer({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-[#666666] mb-1.5">Pick-up Time</label>
-                    <Input
-                      type="time"
+                    <CustomSelect
                       value={form.pickupTime}
-                      onChange={(e) => setForm({ ...form, pickupTime: e.target.value })}
-                      className="h-7"
+                      onChange={(value) => setForm({ ...form, pickupTime: value })}
+                      options={TIME_12H_SELECT_OPTIONS}
+                      placeholder="Keep existing"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-[#666666] mb-1.5">Dropoff Time</label>
-                    <Input
-                      type="time"
+                    <CustomSelect
                       value={form.dropoffTime}
-                      onChange={(e) => setForm({ ...form, dropoffTime: e.target.value })}
-                      className="h-7"
+                      onChange={(value) => setForm({ ...form, dropoffTime: value })}
+                      options={TIME_12H_SELECT_OPTIONS}
+                      placeholder="Keep existing"
                     />
                   </div>
                 </div>

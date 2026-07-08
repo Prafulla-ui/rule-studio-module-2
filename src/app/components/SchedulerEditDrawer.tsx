@@ -25,6 +25,7 @@ import {
   importFieldClassName,
   validateImportedScheduler,
 } from '../utils/schedulerImportValidation';
+import { normalizeTimeTo12Hour, TIME_12H_SELECT_OPTIONS } from '../utils/timeFormat';
 
 interface SchedulerEditDrawerProps {
   isOpen: boolean;
@@ -121,6 +122,8 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
         scheduleIsActive: true,
         notifyEmailAfter: true,
         notifyEmailValue: scheduler.notifyEmailValue || '180',
+        pickupTime: normalizeTimeTo12Hour(scheduler.pickupTime || ''),
+        dropoffTime: normalizeTimeTo12Hour(scheduler.dropoffTime || ''),
       });
     }
   }, [isOpen, scheduler]);
@@ -135,6 +138,8 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
         id: schedulerData.id, // Keep the current scheduler's id
         selectedSchedule: scheduleId,
         scheduleName: selectedScheduler.scheduleName || '',
+        pickupTime: normalizeTimeTo12Hour(selectedScheduler.pickupTime || ''),
+        dropoffTime: normalizeTimeTo12Hour(selectedScheduler.dropoffTime || ''),
       });
     } else {
       // Clear selection
@@ -621,22 +626,20 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs text-[#666666] mb-1.5">Pick-up Time</label>
-                  <Input
-                    type="time"
+                  <CustomSelect
                     value={schedulerData.pickupTime}
-                    onChange={(e) => setSchedulerData({ ...schedulerData, pickupTime: e.target.value })}
-                    placeholder="HH:MM"
-                    className="h-7"
+                    onChange={(value) => setSchedulerData({ ...schedulerData, pickupTime: value })}
+                    options={TIME_12H_SELECT_OPTIONS}
+                    placeholder="Select time"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-[#666666] mb-1.5">Dropoff Time</label>
-                  <Input
-                    type="time"
+                  <CustomSelect
                     value={schedulerData.dropoffTime}
-                    onChange={(e) => setSchedulerData({ ...schedulerData, dropoffTime: e.target.value })}
-                    placeholder="HH:MM"
-                    className="h-7"
+                    onChange={(value) => setSchedulerData({ ...schedulerData, dropoffTime: value })}
+                    options={TIME_12H_SELECT_OPTIONS}
+                    placeholder="Select time"
                   />
                 </div>
               </div>
