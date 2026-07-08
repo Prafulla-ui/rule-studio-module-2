@@ -499,31 +499,100 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
               onClick={() => setActiveTab('manage-scheduler')}
               className={`px-6 py-3 text-sm font-medium transition-colors relative ${
                 activeTab === 'manage-scheduler'
-                  ? 'text-[#ff9800] border-b-2 border-[#ff9800]'
+                  ? 'text-[#ff9800]'
                   : 'text-[#666666] hover:text-[#ff9800]'
               }`}
             >
-              Manage Scheduler
+              <span
+                className={`inline-flex items-center gap-1.5 pb-2 ${
+                  activeTab === 'manage-scheduler' ? 'border-b-2 border-[#ff9800]' : ''
+                }`}
+              >
+                Manage Schedulers
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+                      aria-label="Schedulers definition"
+                    >
+                      <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="start">
+                    <p className="text-xs text-gray-700 leading-relaxed">
+                      Define when pricing jobs run, including timing, recurrence, and activation.
+                    </p>
+                  </PopoverContent>
+                </Popover>
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('manage-rules')}
               className={`px-6 py-3 text-sm font-medium transition-colors relative ${
                 activeTab === 'manage-rules'
-                  ? 'text-[#ff9800] border-b-2 border-[#ff9800]'
+                  ? 'text-[#ff9800]'
                   : 'text-[#666666] hover:text-[#ff9800]'
               }`}
             >
-              Manage Rules
+              <span
+                className={`inline-flex items-center gap-1.5 pb-2 ${
+                  activeTab === 'manage-rules' ? 'border-b-2 border-[#ff9800]' : ''
+                }`}
+              >
+                Manage Rules
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+                      aria-label="Rules definition"
+                    >
+                      <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="start">
+                    <p className="text-xs text-gray-700 leading-relaxed">
+                      Define what pricing logic applies, including conditions and actions.
+                    </p>
+                  </PopoverContent>
+                </Popover>
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('manage-schedule')}
               className={`px-6 py-3 text-sm font-medium transition-colors relative ${
                 activeTab === 'manage-schedule'
-                  ? 'text-[#ff9800] border-b-2 border-[#ff9800]'
+                  ? 'text-[#ff9800]'
                   : 'text-[#666666] hover:text-[#ff9800]'
               }`}
             >
-              Manage Strategy
+              <span
+                className={`inline-flex items-center gap-1.5 pb-2 ${
+                  activeTab === 'manage-schedule' ? 'border-b-2 border-[#ff9800]' : ''
+                }`}
+              >
+                Manage Strategies
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+                      aria-label="Strategies definition"
+                    >
+                      <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="start">
+                    <p className="text-xs text-gray-700 leading-relaxed">
+                      Define how rules are bundled and deployed through scheduled execution plans.
+                    </p>
+                  </PopoverContent>
+                </Popover>
+              </span>
             </button>
           </div>
           
