@@ -10,9 +10,10 @@ interface MultiSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  hasError?: boolean;
 }
 
-export function MultiSelect({ value, onChange, options, placeholder = 'Select options', className = '', disabled = false }: MultiSelectProps) {
+export function MultiSelect({ value, onChange, options, placeholder = 'Select options', className = '', disabled = false, hasError = false }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -56,10 +57,12 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
         <button
           type="button"
           disabled={disabled}
-          className={`w-full h-7 border border-[#ced4da] rounded px-3 py-2 text-left flex items-center justify-between transition-colors text-sm ${
+          className={`w-full h-7 border rounded px-3 py-2 text-left flex items-center justify-between transition-colors text-sm ${
             disabled 
-              ? 'bg-gray-100 cursor-not-allowed text-gray-500 opacity-100' 
-              : 'bg-white hover:bg-gray-50 cursor-pointer'
+              ? 'bg-gray-100 cursor-not-allowed text-gray-500 opacity-100 border-[#ced4da]' 
+              : hasError
+                ? 'bg-white hover:bg-gray-50 cursor-pointer border-amber-400 ring-1 ring-amber-400'
+                : 'bg-white hover:bg-gray-50 cursor-pointer border-[#ced4da]'
           } ${className}`}
         >
           <span className={value.length > 0 ? (disabled ? "text-gray-500" : "text-gray-900") : "text-gray-400"}>

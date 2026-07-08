@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Switch } from './ui/switch';
 import { CustomSelect } from './CustomSelect';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { applyImportValidation } from '../utils/schedulerImportValidation';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,7 +76,13 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
   const [isFirstTimeRules, setIsFirstTimeRules] = useState(true);
   const [isFirstTimeStrategy, setIsFirstTimeStrategy] = useState(true);
   const [isFirstTimeScheduler, setIsFirstTimeScheduler] = useState(true);
-  const [demoSchedulerData, setDemoSchedulerData] = useState(() => [...demoSchedulers]);
+  const [demoSchedulerData, setDemoSchedulerData] = useState(() =>
+    demoSchedulers.map((scheduler) =>
+      scheduler.creationSource === 'excel'
+        ? applyImportValidation(scheduler as Record<string, unknown>)
+        : scheduler
+    )
+  );
 
   useEffect(() => {
     if (schedulers.length > 0) {
@@ -1491,13 +1498,13 @@ const demoSchedulers = [
   {
     id: 'demo-long-3',
     scheduleName: 'Enterprise_Rate_Submission_Automatic_Nightly_Batch_Processing_Scheduler',
-    submissionType: 'Manual',
+    submissionType: '',
     pickupLocation: ['New York', 'Chicago', 'Boston'],
     dropOffLocation: ['New York', 'Chicago'],
     sameDropoff: false,
     productCode: ['AD'],
     carCode: ['ECAR', 'CCAR'],
-    lorCode: ['5', '6', '7'],
+    lorCode: [],
     getRateShoppedData: true,
     rateType: 'baseRate',
     dataSource: ['ExpediaAPI_1xV3'],
@@ -1514,9 +1521,9 @@ const demoSchedulers = [
     endType: 'never',
     createdDate: 'Jul 8, 2026',
     scheduleIsActive: true,
-    importStatus: 'needs_attention',
-    importValidationErrors: ['Submission Type is required', 'LOR is required'],
     creationSource: 'excel',
+    importedAt: '2026-07-08T00:00:00.000Z',
+    importFileName: 'demo_import.xlsx',
   },
   {
     id: 'demo-1',

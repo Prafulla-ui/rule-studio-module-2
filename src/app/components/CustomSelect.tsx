@@ -8,7 +8,9 @@ interface CustomSelectProps {
   value?: string;
   onChange?: (value: string) => void;
   className?: string;
+  selectClassName?: string;
   disabled?: boolean;
+  hasError?: boolean;
 }
 
 export function CustomSelect({ 
@@ -16,9 +18,11 @@ export function CustomSelect({
   options, 
   placeholder = 'Select',
   className = '',
+  selectClassName = '',
   value,
   onChange,
-  disabled = false
+  disabled = false,
+  hasError = false,
 }: CustomSelectProps) {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (onChange) {
@@ -35,7 +39,11 @@ export function CustomSelect({
       )}
       <div className="relative">
         <select
-          className="w-full h-7 pl-3 pr-8 border border-gray-300 rounded text-sm text-gray-700 bg-white appearance-none focus:outline-none focus:ring-1 focus:ring-[#ff9800] focus:border-[#ff9800] cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className={`w-full h-7 pl-3 pr-8 border rounded text-sm text-gray-700 bg-white appearance-none focus:outline-none focus:ring-1 cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            hasError
+              ? 'border-amber-400 focus:ring-amber-400 focus:border-amber-400'
+              : 'border-gray-300 focus:ring-[#ff9800] focus:border-[#ff9800]'
+          } ${selectClassName}`}
           value={value || ''}
           onChange={handleChange}
           disabled={disabled}

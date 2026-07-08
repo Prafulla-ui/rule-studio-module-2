@@ -111,20 +111,25 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
     setSchedulerData({ ...schedulerData, daysOutValue: nextTags.join(', ') });
   };
 
+  const hydrateSchedulerData = (source: typeof scheduler) => {
+    const hydrated = {
+      ...source,
+      submitRatesToTetheredLocations: true,
+      submitToTetheredProducts: true,
+      submitToTetheredCars: true,
+      scheduleIsActive: true,
+      notifyEmailAfter: true,
+      notifyEmailValue: source.notifyEmailValue || '180',
+      pickupTime: normalizeTimeTo12Hour(source.pickupTime || ''),
+      dropoffTime: normalizeTimeTo12Hour(source.dropoffTime || ''),
+    };
+    return source.creationSource === 'excel' ? applyImportValidation(hydrated) : hydrated;
+  };
+
   useEffect(() => {
     if (isOpen && scheduler) {
       setDaysOutInput('');
-      setSchedulerData({
-        ...scheduler,
-        submitRatesToTetheredLocations: true,
-        submitToTetheredProducts: true,
-        submitToTetheredCars: true,
-        scheduleIsActive: true,
-        notifyEmailAfter: true,
-        notifyEmailValue: scheduler.notifyEmailValue || '180',
-        pickupTime: normalizeTimeTo12Hour(scheduler.pickupTime || ''),
-        dropoffTime: normalizeTimeTo12Hour(scheduler.dropoffTime || ''),
-      });
+      setSchedulerData(hydrateSchedulerData(scheduler));
     }
   }, [isOpen, scheduler]);
 
@@ -360,6 +365,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                     { value: 'Automatic', label: 'Automatic' },
                     { value: 'Manual', label: 'Manual' }
                   ]}
+                  hasError={fieldHasImportError(fieldErrors, 'submissionType')}
                 />
                 {renderFieldError('submissionType')}
               </div>
@@ -385,6 +391,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   }}
                   options={['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose']}
                   placeholder="Select pickup locations"
+                  hasError={fieldHasImportError(fieldErrors, 'pickupLocation')}
                 />
                 {renderFieldError('pickupLocation')}
               </div>
@@ -396,6 +403,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   options={['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose']}
                   placeholder="Select drop-off locations"
                   disabled={schedulerData.sameDropoff}
+                  hasError={fieldHasImportError(fieldErrors, 'dropOffLocation')}
                 />
                 {renderFieldError('dropOffLocation')}
                 <div className="flex items-center space-x-2 mt-2">
@@ -425,6 +433,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   onChange={(value) => setSchedulerData({ ...schedulerData, productCode: value })}
                   options={['AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM']}
                   placeholder="Select product codes"
+                  hasError={fieldHasImportError(fieldErrors, 'productCode')}
                 />
                 {renderFieldError('productCode')}
               </div>
@@ -435,6 +444,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   onChange={(value) => setSchedulerData({ ...schedulerData, carCode: value })}
                   options={['ECAR', 'CCAR', 'ICAR', 'SCAR', 'FCAR', 'PCAR', 'MVAR', 'FVAR']}
                   placeholder="Select car codes"
+                  hasError={fieldHasImportError(fieldErrors, 'carCode')}
                 />
                 {renderFieldError('carCode')}
               </div>
@@ -445,6 +455,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   onChange={(value) => setSchedulerData({ ...schedulerData, lorCode: value })}
                   options={['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']}
                   placeholder="Select LOR"
+                  hasError={fieldHasImportError(fieldErrors, 'lorCode')}
                 />
                 {renderFieldError('lorCode')}
               </div>
@@ -538,28 +549,30 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
               {schedulerData.dateRangeType === 'fixed' ? (
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs text-[#666666] mb-1.5">Start Date <span className="text-red-500">*</span></label>
+                    <label className={fieldLabelClass('fixedStartDate')}>Start Date <span className="text-red-500">*</span></label>
                     <Input
                       type="date"
                       value={schedulerData.fixedStartDate}
                       onChange={(e) => setSchedulerData({ ...schedulerData, fixedStartDate: e.target.value })}
-                      className="h-7"
+                      className={importFieldClassName(fieldErrors, 'fixedStartDate')}
                     />
+                    {renderFieldError('fixedStartDate')}
                   </div>
                   <div>
-                    <label className="block text-xs text-[#666666] mb-1.5">End Date <span className="text-red-500">*</span></label>
+                    <label className={fieldLabelClass('fixedEndDate')}>End Date <span className="text-red-500">*</span></label>
                     <Input
                       type="date"
                       value={schedulerData.fixedEndDate}
                       onChange={(e) => setSchedulerData({ ...schedulerData, fixedEndDate: e.target.value })}
-                      className="h-7"
+                      className={importFieldClassName(fieldErrors, 'fixedEndDate')}
                     />
+                    {renderFieldError('fixedEndDate')}
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className={`rounded-lg border bg-white p-4 ${fieldHasImportError(fieldErrors, 'daysOutValue') ? 'border-amber-400' : 'border-gray-200'}`}>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-900">Days Out</h4>
+                    <h4 className={`text-sm font-semibold ${fieldHasImportError(fieldErrors, 'daysOutValue') ? 'text-amber-800' : 'text-gray-900'}`}>Days Out</h4>
                   </div>
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2 min-h-[32px]">
@@ -602,6 +615,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                       </CustomButton>
                     </div>
                   </div>
+                  {renderFieldError('daysOutValue')}
                 </div>
               )}
             </div>
@@ -614,13 +628,15 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
             </div>
             <div className="space-y-4">
               <div className="w-1/3">
-                <label className="block text-xs text-[#666666] mb-1.5">Days of Week <span className="text-red-500">*</span></label>
+                <label className={fieldLabelClass('daysOfWeek')}>Days of Week <span className="text-red-500">*</span></label>
                 <MultiSelect
                   value={schedulerData.daysOfWeek}
                   onChange={(value) => setSchedulerData({ ...schedulerData, daysOfWeek: value })}
                   options={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
                   placeholder="Select days"
+                  hasError={fieldHasImportError(fieldErrors, 'daysOfWeek')}
                 />
+                {renderFieldError('daysOfWeek')}
               </div>
               
               <div className="grid grid-cols-3 gap-4">
@@ -657,7 +673,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
               <div className="grid grid-cols-3 gap-4">
                 {/* Schedule Time */}
                 <div>
-                  <label className="block text-xs text-[#666666] mb-1.5">Schedule Time <span className="text-red-500">*</span></label>
+                  <label className={fieldLabelClass('scheduleTime')}>Schedule Time <span className="text-red-500">*</span></label>
                   <CustomSelect
                     value={schedulerData.scheduleTime}
                     onChange={(value) => setSchedulerData({ ...schedulerData, scheduleTime: value })}
@@ -674,7 +690,9 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                       return times;
                     })()}
                     placeholder="Select time"
+                    hasError={fieldHasImportError(fieldErrors, 'scheduleTime')}
                   />
+                  {renderFieldError('scheduleTime')}
                 </div>
 
                 {/* Start Date */}
