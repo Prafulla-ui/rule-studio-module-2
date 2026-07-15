@@ -11,9 +11,19 @@ interface MultiSelectProps {
   className?: string;
   disabled?: boolean;
   hasError?: boolean;
+  selectAllLabel?: string;
 }
 
-export function MultiSelect({ value, onChange, options, placeholder = 'Select options', className = '', disabled = false, hasError = false }: MultiSelectProps) {
+export function MultiSelect({
+  value,
+  onChange,
+  options,
+  placeholder = 'Select options',
+  className = '',
+  disabled = false,
+  hasError = false,
+  selectAllLabel = 'Select All',
+}: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -51,13 +61,25 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
     }
   };
 
+  const renderTriggerContent = () => {
+    if (value.length === 0) {
+      return <span className="text-gray-400">{placeholder}</span>;
+    }
+
+    return (
+      <span className={disabled ? 'text-gray-500' : 'text-gray-900'}>
+        {getDisplayText()}
+      </span>
+    );
+  };
+
   return (
     <Popover open={isOpen && !disabled} onOpenChange={handleOpenChange} modal={false}>
       <PopoverTrigger asChild>
         <button
           type="button"
           disabled={disabled}
-          className={`w-full h-7 border rounded px-3 py-2 text-left flex items-center justify-between transition-colors text-sm ${
+          className={`w-full min-h-7 h-auto border rounded px-3 py-1.5 text-left flex items-center justify-between transition-colors text-sm ${
             disabled 
               ? 'bg-gray-100 cursor-not-allowed text-gray-500 opacity-100 border-[#ced4da]' 
               : hasError
@@ -65,9 +87,7 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
                 : 'bg-white hover:bg-gray-50 cursor-pointer border-[#ced4da]'
           } ${className}`}
         >
-          <span className={value.length > 0 ? (disabled ? "text-gray-500" : "text-gray-900") : "text-gray-400"}>
-            {getDisplayText()}
-          </span>
+          {renderTriggerContent()}
           <ChevronDown className={`h-4 w-4 flex-shrink-0 ml-2 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />
         </button>
       </PopoverTrigger>
@@ -83,7 +103,7 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
+              placeholder="Search"
               className="w-full h-7 pl-8 pr-3 text-xs border border-gray-300 rounded focus:outline-none focus:border-[#ff9800]"
               onClick={(e) => e.stopPropagation()}
             />
@@ -100,7 +120,7 @@ export function MultiSelect({ value, onChange, options, placeholder = 'Select op
                 onCheckedChange={handleSelectAll}
                 className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
               />
-              <span className="text-xs text-[#ff9800] hover:text-[#f57c00] transition-colors">Select All</span>
+              <span className="text-xs text-gray-900">{selectAllLabel}</span>
             </div>
           </div>
         </div>

@@ -23,6 +23,7 @@ import {
   parseMockExcelImport,
   type ImportSummary,
 } from '../utils/schedulerImportValidation';
+import { RULE_CAR_CODE_OPTIONS } from '../constants/ruleDefineOptions';
 import { TIME_12H_SELECT_OPTIONS, normalizeTimeTo12Hour } from '../utils/timeFormat';
 
 type CreationMethod = 'manual' | 'import';
@@ -595,7 +596,7 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
                 <MultiSelect
                   value={schedulerData.carCode}
                   onChange={(value) => setSchedulerData({ ...schedulerData, carCode: value })}
-                  options={['ECAR', 'CCAR', 'ICAR', 'SCAR', 'FCAR', 'PCAR', 'MCAR', 'LCAR', 'XCAR', 'RCAR']}
+                  options={RULE_CAR_CODE_OPTIONS}
                   placeholder="Select car codes"
                 />
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Info, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Info } from 'lucide-react';
 import {
   Drawer,
   DrawerClose,
@@ -15,14 +15,12 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Checkbox } from './ui/checkbox';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { extractRuleFormState } from '../utils/ruleFormHydration';
 import { CustomButton } from './CustomButton';
+import { DefineRuleSection, getDefineRuleSectionValues } from './DefineRuleSection';
+import { DEFAULT_DEFINE_RULE_ATTRIBUTES } from '../constants/ruleDefineOptions';
 import { CustomSelect } from './CustomSelect';
-import {
-  Popover,
-  PopoverContent,
-  PopoverScrollArea,
-  PopoverTrigger,
-} from "./ui/popover";
+import { MultiSelect } from './MultiSelect';
 
 interface RuleEditDrawerProps {
   open: boolean;
@@ -35,10 +33,17 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
   const [ruleData, setRuleData] = useState({
     name: '',
     description: '',
-    locations: ['All'] as string[],
-    productTypes: [] as string[],
-    lors: [] as string[],
-    fleetTypes: [] as string[],
+    brand: DEFAULT_DEFINE_RULE_ATTRIBUTES.brand,
+    pickupLocation: DEFAULT_DEFINE_RULE_ATTRIBUTES.pickupLocation,
+    sameDropoff: DEFAULT_DEFINE_RULE_ATTRIBUTES.sameDropoff,
+    dropOffLocation: DEFAULT_DEFINE_RULE_ATTRIBUTES.dropOffLocation,
+    productCode: DEFAULT_DEFINE_RULE_ATTRIBUTES.productCode,
+    lor: DEFAULT_DEFINE_RULE_ATTRIBUTES.lor,
+    carCode: DEFAULT_DEFINE_RULE_ATTRIBUTES.carCode,
+    locations: DEFAULT_DEFINE_RULE_ATTRIBUTES.pickupLocation,
+    productTypes: [DEFAULT_DEFINE_RULE_ATTRIBUTES.productCode],
+    lors: DEFAULT_DEFINE_RULE_ATTRIBUTES.lor,
+    fleetTypes: DEFAULT_DEFINE_RULE_ATTRIBUTES.carCode,
     // First IF condition - special structure (now multiple)
     firstConditions: [{
       enabled: true,
@@ -106,200 +111,18 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
     }
   });
 
-  const [fleetTypePopoverOpen, setFleetTypePopoverOpen] = useState(false);
-  const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
-  const [productTypePopoverOpen, setProductTypePopoverOpen] = useState(false);
-  const [lorPopoverOpen, setLorPopoverOpen] = useState(false);
-  const [leftOptionsPopoverOpen, setLeftOptionsPopoverOpen] = useState<{[key: number]: boolean}>({});
-  const [rightOptionsPopoverOpen, setRightOptionsPopoverOpen] = useState<{[key: number]: boolean}>({});
-
-  const fleetTypes = ['Compact', 'Sedan', 'SUV', 'XUV', 'Luxury', 'Sports', 'Van'];
   const conditionTypes = ['Utilization', 'Day of Week', 'Time of Day', 'Competitor Price', 'Booking Volume', 'Historical Demand', 'Lead Time', 'Season'];
   const operators = ['Less than', 'Greater than', 'Equal to', 'Less or Equal', 'Greater or Equal', 'Range', 'Equal to or more than', 'Equal to or less than'];
-  const actionTypes = ['Alert Only', 'Vendor Price', 'Rank'];
-  const locations = ['All', 'BGLV1-BGLV1', 'BGLV1-PDX', 'BGLV1-PHX', 'BGLV1-SFO'];
-  const productTypes = ['Daily Rental', 'Weekly Rental', 'Monthly Rental', 'Subscription'];
-  const lorOptions = ['1-3 days', '4-7 days', '8-14 days', '15-30 days', '30+ days'];
-  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const actionTypes = ['Alert Only', 'Value', 'Vendor Price', 'Rank'];
   const optionsForSelect = ['Hertz', 'Budget', 'National', 'Alamo', 'Sixt', 'Enterprise', 'Avis', 'Thrifty', 'Dollar'];
 
   useEffect(() => {
-    if (rule) {
-      setRuleData({
-        name: rule.name || '',
-        description: rule.description || '',
-        locations: rule.locations || [],
-        productTypes: rule.productTypes || [],
-        lors: rule.lors || [],
-        fleetTypes: rule.fleetTypes || [],
-        firstConditions: rule.firstConditions || [{
-          enabled: true,
-          leftMinMax: 'Min',
-          leftOptions: [] as string[],
-          leftValue: '',
-          operator: 'Less or Equal',
-          rightMinMax: 'Min',
-          rightOptions: [] as string[],
-          rightValue: ''
-        }],
-        conditionalRules: (rule.conditionalRules || [{
-          enabled: true,
-          type: 'if',
-          mainCondition: { type: 'Utilization', operator: 'Less than', value: '', valueEnd: '', unit: '%' },
-          subConditions: [{
-            connector: 'And',
-            type: 'Days out',
-            operator: 'Less than or equal to',
-            value: '',
-            valueEnd: '',
-            unit: 'days'
-          }],
-          actions: [],
-          selectedDays: [] as string[],
-          valueDetails: {
-            value: '',
-            priceEndsWith: ''
-          },
-          currentPriceDetails: {
-            currentPrice: '',
-            currentPriceUnit: '$',
-            byFix: 'Lower',
-            min: 'Min',
-            minMaxOperators: '',
-            minMaxOperatorsUnit: '%',
-            priceEndsWith: '',
-            priceEndsWithUnit: '%'
-          },
-          vendorPriceDetails: {
-            currentPrice: '',
-            currentPriceUnit: '$',
-            byFix: 'Lower',
-            min: 'Min',
-            minMaxOptions: [] as string[],
-            minMaxValue: '',
-            minMaxValueUnit: '%',
-            minMaxOperators: '',
-            minMaxOperatorsUnit: '%',
-            priceEndsWith: '',
-            priceEndsWithUnit: '%',
-            butNoInputValue: '',
-            butNoCheckbox: false
-          }
-        }]).map((r: any) => ({
-          ...r,
-          subConditions: (r.subConditions || []).map((sc: any) => ({
-            ...sc,
-            dateRangeType: sc.dateRangeType || 'daysOut',
-            pickupStartDate: sc.pickupStartDate || '',
-            pickupEndDate: sc.pickupEndDate || ''
-          })),
-          valueDetails: r.valueDetails || {
-            value: '',
-            priceEndsWith: ''
-          },
-          currentPriceDetails: r.currentPriceDetails || {
-            currentPrice: '',
-            currentPriceUnit: '$',
-            byFix: 'Lower',
-            min: 'Min',
-            minMaxOperators: '',
-            minMaxOperatorsUnit: '%',
-            priceEndsWith: '',
-            priceEndsWithUnit: '%'
-          },
-          vendorPriceDetails: r.vendorPriceDetails || {
-            currentPrice: '',
-            currentPriceUnit: '$',
-            byFix: 'Lower',
-            min: 'Min',
-            minMaxOptions: [] as string[],
-            minMaxValue: '',
-            minMaxValueUnit: '%',
-            minMaxOperators: '',
-            minMaxOperatorsUnit: '%',
-            priceEndsWith: '',
-            priceEndsWithUnit: '%',
-            butNoInputValue: '',
-            butNoCheckbox: false
-          }
-        })),
-        elseCondition: rule.elseCondition || {
-          enabled: false,
-          action: { type: '', value: '', valueType: 'percentage' }
-        }
-      });
+    if (!open || !rule) {
+      return;
     }
-  }, [rule]);
 
-  const toggleFleetType = (type: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      fleetTypes: prev.fleetTypes.includes(type)
-        ? prev.fleetTypes.filter(t => t !== type)
-        : [...prev.fleetTypes, type]
-    }));
-  };
-
-  const toggleLocation = (location: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      locations: prev.locations.includes(location)
-        ? prev.locations.filter(l => l !== location)
-        : [...prev.locations, location]
-    }));
-  };
-
-  const toggleProductType = (type: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      productTypes: prev.productTypes.includes(type)
-        ? prev.productTypes.filter(t => t !== type)
-        : [...prev.productTypes, type]
-    }));
-  };
-
-  const toggleLor = (lor: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      lors: prev.lors.includes(lor)
-        ? prev.lors.filter(l => l !== lor)
-        : [...prev.lors, lor]
-    }));
-  };
-
-  const toggleLeftOption = (option: string, index: number) => {
-    setRuleData(prev => ({
-      ...prev,
-      firstConditions: prev.firstConditions.map((cond, i) => {
-        if (i === index) {
-          return {
-            ...cond,
-            leftOptions: cond.leftOptions.includes(option)
-              ? cond.leftOptions.filter(o => o !== option)
-              : [...cond.leftOptions, option]
-          };
-        }
-        return cond;
-      })
-    }));
-  };
-
-  const toggleRightOption = (option: string, index: number) => {
-    setRuleData(prev => ({
-      ...prev,
-      firstConditions: prev.firstConditions.map((cond, i) => {
-        if (i === index) {
-          return {
-            ...cond,
-            rightOptions: cond.rightOptions.includes(option)
-              ? cond.rightOptions.filter(o => o !== option)
-              : [...cond.rightOptions, option]
-          };
-        }
-        return cond;
-      })
-    }));
-  };
+    setRuleData(extractRuleFormState(rule));
+  }, [open, rule]);
 
   const addApplyRule = () => {
     setRuleData(prev => ({
@@ -502,10 +325,17 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
     const formattedRule = {
       name: ruleData.name,
       description: ruleData.description,
-      locations: ruleData.locations,
-      productTypes: ruleData.productTypes,
-      lors: ruleData.lors,
-      fleetTypes: ruleData.fleetTypes,
+      brand: ruleData.brand,
+      pickupLocation: ruleData.pickupLocation,
+      sameDropoff: ruleData.sameDropoff,
+      dropOffLocation: ruleData.sameDropoff ? ruleData.pickupLocation : ruleData.dropOffLocation,
+      productCode: ruleData.productCode,
+      lor: ruleData.lor,
+      carCode: ruleData.carCode,
+      locations: ruleData.pickupLocation,
+      productTypes: ruleData.productCode ? [ruleData.productCode] : [],
+      lors: ruleData.lor?.length ? ruleData.lor : [],
+      fleetTypes: ruleData.carCode,
       condition: 'Custom condition',
       action: 'Custom action',
       firstConditions: ruleData.firstConditions,
@@ -545,21 +375,17 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
 
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-white">
             {/* Basic Information Section */}
-            <div className="bg-[#f8f9fa] rounded-lg p-4 space-y-4">
-              <div>
-                <h3 className="text-[#2c3e50] text-base font-medium">Define Rule</h3>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#666666]">Rule Name *</Label>
-                <Input
-                  placeholder="Enter rule name"
-                  value={ruleData.name}
-                  onChange={(e) => setRuleData({ ...ruleData, name: e.target.value })}
-                  className="h-7"
-                />
-              </div>
-            </div>
+            <DefineRuleSection
+              values={getDefineRuleSectionValues(ruleData)}
+              onChange={(updates) =>
+                setRuleData({
+                  ...ruleData,
+                  ...updates,
+                  ...(updates.lor ? { lors: updates.lor } : {}),
+                })
+              }
+              nameInputId="edit-rule-name-input"
+            />
 
             {/* First IF Condition - Special Structure */}
             <div className="bg-[#f8f9fa] rounded-lg p-4 space-y-4">
@@ -597,39 +423,12 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
 
                       {/* Left Options Multi-select */}
                       <div className="col-span-2">
-                        <Popover open={leftOptionsPopoverOpen[index]} onOpenChange={(open) => setLeftOptionsPopoverOpen(prev => ({...prev, [index]: open}))} modal={false}>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className="w-full h-7 bg-white border border-[#ced4da] rounded px-3 py-2 text-left flex items-center justify-between hover:bg-gray-50 transition-colors text-sm"
-                            >
-                              <span className={condition.leftOptions.length > 0 ? "text-gray-900" : "text-gray-400"}>
-                                {condition.leftOptions.length > 0
-                                  ? condition.leftOptions.join(', ')
-                                  : 'Select *'}
-                              </span>
-                              <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0 ml-2" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" align="start">
-                            <PopoverScrollArea className="space-y-2">
-                              {optionsForSelect.map((option) => (
-                                <div
-                                  key={option}
-                                  className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-                                  onClick={() => toggleLeftOption(option, index)}
-                                >
-                                  <Checkbox
-                                    checked={condition.leftOptions.includes(option)}
-                                    onCheckedChange={() => toggleLeftOption(option, index)}
-                                    className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
-                                  />
-                                  <span className="text-sm text-gray-900">{option}</span>
-                                </div>
-                              ))}
-                            </PopoverScrollArea>
-                          </PopoverContent>
-                        </Popover>
+                        <MultiSelect
+                          value={condition.leftOptions}
+                          onChange={(leftOptions) => updateFirstCondition(index, 'leftOptions', leftOptions)}
+                          options={optionsForSelect}
+                          placeholder="Select *"
+                        />
                       </div>
 
                       {/* Left Value Input */}
@@ -677,39 +476,12 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
 
                       {/* Right Options Multi-select */}
                       <div className="col-span-2">
-                        <Popover open={rightOptionsPopoverOpen[index]} onOpenChange={(open) => setRightOptionsPopoverOpen(prev => ({...prev, [index]: open}))} modal={false}>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className="w-full h-7 bg-white border border-[#ced4da] rounded px-3 py-2 text-left flex items-center justify-between hover:bg-gray-50 transition-colors text-sm"
-                            >
-                              <span className={condition.rightOptions.length > 0 ? "text-gray-900" : "text-gray-400"}>
-                                {condition.rightOptions.length > 0
-                                  ? condition.rightOptions.join(', ')
-                                  : 'Select *'}
-                              </span>
-                              <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0 ml-2" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" align="start">
-                            <PopoverScrollArea className="space-y-2">
-                              {optionsForSelect.map((option) => (
-                                <div
-                                  key={option}
-                                  className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-                                  onClick={() => toggleRightOption(option, index)}
-                                >
-                                  <Checkbox
-                                    checked={condition.rightOptions.includes(option)}
-                                    onCheckedChange={() => toggleRightOption(option, index)}
-                                    className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
-                                  />
-                                  <span className="text-sm text-gray-900">{option}</span>
-                                </div>
-                              ))}
-                            </PopoverScrollArea>
-                          </PopoverContent>
-                        </Popover>
+                        <MultiSelect
+                          value={condition.rightOptions}
+                          onChange={(rightOptions) => updateFirstCondition(index, 'rightOptions', rightOptions)}
+                          options={optionsForSelect}
+                          placeholder="Select *"
+                        />
                       </div>
 
                       {/* Right Value Input */}
@@ -917,7 +689,7 @@ export function RuleEditDrawer({ open, onOpenChange, rule, onSave }: RuleEditDra
                                 <div className="mt-4 space-y-4 p-4 bg-gray-50 border border-gray-200 rounded">
                                   {/* Value Input */}
                                   <div className="space-y-1.5">
-                                    <Label className="text-xs text-[#666666]">Value</Label>
+                                    <Label className="text-xs text-[#666666]">Value *</Label>
                                     <div className="w-1/4">
                                       <Input
                                         placeholder="Enter value *"

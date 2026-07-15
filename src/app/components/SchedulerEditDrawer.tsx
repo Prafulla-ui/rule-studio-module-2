@@ -26,6 +26,7 @@ import {
   validateImportedScheduler,
 } from '../utils/schedulerImportValidation';
 import { normalizeTimeTo12Hour, TIME_12H_SELECT_OPTIONS } from '../utils/timeFormat';
+import { RULE_CAR_CODE_OPTIONS } from '../constants/ruleDefineOptions';
 
 interface SchedulerEditDrawerProps {
   isOpen: boolean;
@@ -442,7 +443,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                 <MultiSelect
                   value={schedulerData.carCode}
                   onChange={(value) => setSchedulerData({ ...schedulerData, carCode: value })}
-                  options={['ECAR', 'CCAR', 'ICAR', 'SCAR', 'FCAR', 'PCAR', 'MVAR', 'FVAR']}
+                  options={RULE_CAR_CODE_OPTIONS}
                   placeholder="Select car codes"
                   hasError={fieldHasImportError(fieldErrors, 'carCode')}
                 />

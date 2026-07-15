@@ -177,7 +177,7 @@ export function parseMockExcelImport(file: File, startId: number): {
     pickupLocation: ['New York'],
     dropOffLocation: ['New York'],
     productCode: ['AD'],
-    carCode: ['ECAR'],
+    carCode: ['A'],
     lorCode: ['7'],
     daysOfWeek: ['Mon', 'Wed', 'Fri'],
   }, file.name);
@@ -188,7 +188,7 @@ export function parseMockExcelImport(file: File, startId: number): {
     pickupLocation: ['Chicago'],
     dropOffLocation: ['Chicago'],
     productCode: ['AE'],
-    carCode: ['CCAR'],
+    carCode: ['B'],
     lorCode: [],
     daysOfWeek: ['Tue'],
     scheduleTime: '',

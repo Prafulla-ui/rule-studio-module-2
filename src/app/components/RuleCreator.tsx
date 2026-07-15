@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Info, ChevronDown, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Info, ArrowLeft, Copy } from 'lucide-react';
+import {
+  buildDuplicateFormState,
+  generateDuplicateRuleName,
+  isDefineRuleUnchanged,
+  isDuplicateNameTaken,
+} from '../utils/ruleDuplicate';
+import { DEFAULT_DEFINE_RULE_ATTRIBUTES } from '../constants/ruleDefineOptions';
+import { DefineRuleSection, getDefineRuleSectionValues } from './DefineRuleSection';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -7,180 +15,165 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Checkbox } from './ui/checkbox';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { CustomSelect } from './CustomSelect';
-import {
-  Popover,
-  PopoverContent,
-  PopoverScrollArea,
-  PopoverTrigger,
-} from "./ui/popover";
+import { MultiSelect } from './MultiSelect';
 
 interface RuleCreatorProps {
   onSave: (rule: any) => void;
   onCancel: () => void;
   editingRule?: any;
+  mode?: 'create' | 'duplicate';
+  sourceRule?: any;
+  existingRuleNames?: string[];
 }
 
-export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps) {
-  const [ruleData, setRuleData] = useState({
+const defaultFirstCondition = {
+  enabled: true,
+  leftMinMax: 'Min',
+  leftOptions: [] as string[],
+  leftValue: '',
+  operator: 'Less or Equal',
+  rightMinMax: 'Min',
+  rightOptions: [] as string[],
+  rightValue: '',
+};
+
+const defaultConditionalRule = {
+  enabled: true,
+  type: 'if',
+  mainCondition: { type: 'Utilization', operator: 'Less than', value: '', valueEnd: '', unit: '%', utilizationType: 'Actual' },
+  subConditions: [{
+    connector: 'And',
+    type: 'Days out',
+    dateRangeType: 'daysOut',
+    operator: 'Less than or equal to',
+    value: '',
+    valueEnd: '',
+    unit: 'days',
+    pickupStartDate: '',
+    pickupEndDate: ''
+  }],
+  actions: [],
+  selectedDays: [] as string[],
+  valueDetails: {
+    value: '',
+    priceEndsWith: ''
+  },
+  currentPriceDetails: {
+    currentPrice: '',
+    currentPriceUnit: '$',
+    byFix: 'Lower',
+    min: 'Min',
+    minMaxOptions: [] as string[],
+    minMaxValue: '',
+    minMaxValueUnit: '%',
+    minMaxOperators: '',
+    minMaxOperatorsUnit: '%',
+    priceEndsWith: '',
+    priceEndsWithUnit: '%'
+  },
+  vendorPriceDetails: {
+    currentPrice: '',
+    currentPriceUnit: '$',
+    byFix: 'Lower',
+    min: 'Min',
+    minMaxOptions: [] as string[],
+    minMaxValue: '',
+    minMaxValueUnit: '%',
+    minMaxOperators: '',
+    minMaxOperatorsUnit: '%',
+    priceEndsWith: '',
+    priceEndsWithUnit: '%',
+    butNoInputValue: '',
+    butNoCheckbox: false
+  }
+};
+
+function buildInitialRuleData(editingRule?: any) {
+  return {
     name: editingRule?.name || '',
     description: editingRule?.description || '',
-    locations: editingRule?.locations || ['All'] as string[],
-    productTypes: editingRule?.productTypes || [] as string[],
-    lors: editingRule?.lors || [] as string[],
-    fleetTypes: editingRule?.fleetTypes || [] as string[],
-    // First IF condition - special structure (now multiple)
-    firstConditions: [{
-      enabled: true,
-      leftMinMax: 'Min',
-      leftOptions: [] as string[],
-      leftValue: '',
-      operator: 'Less or Equal',
-      rightMinMax: 'Min',
-      rightOptions: [] as string[],
-      rightValue: ''
-    }],
-    conditionalRules: editingRule?.conditionalRules || [{
-      enabled: true,
-      type: 'if',
-      mainCondition: { type: 'Utilization', operator: 'Less than', value: '', valueEnd: '', unit: '%', utilizationType: 'Actual' },
-      subConditions: [{
-        connector: 'And',
-        type: 'Days out',
-        dateRangeType: 'daysOut', // 'daysOut' or 'pickupDate'
-        operator: 'Less than or equal to',
-        value: '',
-        valueEnd: '',
-        unit: 'days',
-        pickupStartDate: '',
-        pickupEndDate: ''
-      }],
-      actions: [],
-      selectedDays: [] as string[],
-      valueDetails: {
-        value: '',
-        priceEndsWith: ''
-      },
-      currentPriceDetails: {
-        currentPrice: '',
-        currentPriceUnit: '$',
-        byFix: 'Lower',
-        min: 'Min',
-        minMaxOptions: [] as string[],
-        minMaxValue: '',
-        minMaxValueUnit: '%',
-        minMaxOperators: '',
-        minMaxOperatorsUnit: '%',
-        priceEndsWith: '',
-        priceEndsWithUnit: '%'
-      },
-      vendorPriceDetails: {
-        currentPrice: '',
-        currentPriceUnit: '$',
-        byFix: 'Lower',
-        min: 'Min',
-        minMaxOptions: [] as string[],
-        minMaxValue: '',
-        minMaxValueUnit: '%',
-        minMaxOperators: '',
-        minMaxOperatorsUnit: '%',
-        priceEndsWith: '',
-        priceEndsWithUnit: '%',
-        butNoInputValue: '',
-        butNoCheckbox: false
-      }
-    }],
+    brand: editingRule?.brand || DEFAULT_DEFINE_RULE_ATTRIBUTES.brand,
+    pickupLocation: editingRule?.pickupLocation || DEFAULT_DEFINE_RULE_ATTRIBUTES.pickupLocation,
+    sameDropoff: editingRule?.sameDropoff ?? DEFAULT_DEFINE_RULE_ATTRIBUTES.sameDropoff,
+    dropOffLocation:
+      editingRule?.dropOffLocation || DEFAULT_DEFINE_RULE_ATTRIBUTES.dropOffLocation,
+    productCode: editingRule?.productCode || DEFAULT_DEFINE_RULE_ATTRIBUTES.productCode,
+    lor: editingRule?.lor?.length
+      ? editingRule.lor
+      : editingRule?.lors?.length
+        ? editingRule.lors
+        : DEFAULT_DEFINE_RULE_ATTRIBUTES.lor,
+    carCode: editingRule?.carCode || DEFAULT_DEFINE_RULE_ATTRIBUTES.carCode,
+    locations: editingRule?.pickupLocation || editingRule?.locations || DEFAULT_DEFINE_RULE_ATTRIBUTES.pickupLocation,
+    productTypes: editingRule?.productCode
+      ? [editingRule.productCode]
+      : editingRule?.productTypes || [DEFAULT_DEFINE_RULE_ATTRIBUTES.productCode],
+    lors: editingRule?.lors?.length
+      ? editingRule.lors
+      : editingRule?.lor?.length
+        ? editingRule.lor
+        : DEFAULT_DEFINE_RULE_ATTRIBUTES.lor,
+    fleetTypes: editingRule?.carCode || editingRule?.fleetTypes || DEFAULT_DEFINE_RULE_ATTRIBUTES.carCode,
+    firstConditions: editingRule?.firstConditions
+      ? structuredClone(editingRule.firstConditions)
+      : [defaultFirstCondition],
+    conditionalRules: editingRule?.conditionalRules
+      ? structuredClone(editingRule.conditionalRules)
+      : [structuredClone(defaultConditionalRule)],
     elseCondition: editingRule?.elseCondition || {
       enabled: false,
       action: { type: '', value: '', valueType: 'percentage' }
     }
+  };
+}
+
+export function RuleCreator({
+  onSave,
+  onCancel,
+  editingRule,
+  mode = 'create',
+  sourceRule,
+  existingRuleNames = [],
+}: RuleCreatorProps) {
+  const isDuplicateMode = mode === 'duplicate' && sourceRule;
+  const duplicateInit = isDuplicateMode
+    ? buildDuplicateFormState(
+        sourceRule,
+        generateDuplicateRuleName(sourceRule.name, existingRuleNames)
+      )
+    : null;
+
+  const [ruleData, setRuleData] = useState(() => {
+    if (duplicateInit) {
+      const { schedule: _schedule, scheduleData: _scheduleData, hasFullConfig: _hasFullConfig, hasCopiedSchedule: _hasCopiedSchedule, ...formData } = duplicateInit;
+      return formData;
+    }
+    return buildInitialRuleData(editingRule);
   });
 
-  const [fleetTypePopoverOpen, setFleetTypePopoverOpen] = useState(false);
-  const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
-  const [productTypePopoverOpen, setProductTypePopoverOpen] = useState(false);
-  const [lorPopoverOpen, setLorPopoverOpen] = useState(false);
-  const [leftOptionsPopoverOpen, setLeftOptionsPopoverOpen] = useState<{[key: number]: boolean}>({});
-  const [rightOptionsPopoverOpen, setRightOptionsPopoverOpen] = useState<{[key: number]: boolean}>({});
+  const [copiedSchedule, setCopiedSchedule] = useState(
+    duplicateInit?.schedule ?? 'Not scheduled'
+  );
+  const [copiedScheduleData, setCopiedScheduleData] = useState(
+    duplicateInit?.scheduleData
+  );
 
-  const fleetTypes = ['Compact', 'Sedan', 'SUV', 'XUV', 'Luxury', 'Sports', 'Van'];
+  useEffect(() => {
+    if (!isDuplicateMode) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const input = document.getElementById('rule-name-input') as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isDuplicateMode]);
+
   const conditionTypes = ['Utilization', 'Day of Week', 'Time of Day', 'Competitor Price', 'Booking Volume', 'Historical Demand', 'Lead Time', 'Season'];
   const operators = ['Less than', 'Greater than', 'Equal to', 'Less or Equal', 'Greater or Equal', 'Range', 'Equal to or more than', 'Equal to or less than'];
-  const actionTypes = ['Alert Only', 'Vendor Price', 'Rank'];
-  const locations = ['All', 'BGLV1-BGLV1', 'BGLV1-PDX', 'BGLV1-PHX', 'BGLV1-SFO'];
-  const productTypes = ['Daily Rental', 'Weekly Rental', 'Monthly Rental', 'Subscription'];
-  const lorOptions = ['1-3 days', '4-7 days', '8-14 days', '15-30 days', '30+ days'];
-  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const actionTypes = ['Alert Only', 'Value', 'Vendor Price', 'Rank'];
   const optionsForSelect = ['Hertz', 'Budget', 'National', 'Alamo', 'Sixt', 'Enterprise', 'Avis', 'Thrifty', 'Dollar'];
-
-  const toggleFleetType = (type: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      fleetTypes: prev.fleetTypes.includes(type)
-        ? prev.fleetTypes.filter(t => t !== type)
-        : [...prev.fleetTypes, type]
-    }));
-  };
-
-  const toggleLocation = (location: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      locations: prev.locations.includes(location)
-        ? prev.locations.filter(l => l !== location)
-        : [...prev.locations, location]
-    }));
-  };
-
-  const toggleProductType = (type: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      productTypes: prev.productTypes.includes(type)
-        ? prev.productTypes.filter(t => t !== type)
-        : [...prev.productTypes, type]
-    }));
-  };
-
-  const toggleLor = (lor: string) => {
-    setRuleData(prev => ({
-      ...prev,
-      lors: prev.lors.includes(lor)
-        ? prev.lors.filter(l => l !== lor)
-        : [...prev.lors, lor]
-    }));
-  };
-
-  const toggleLeftOption = (option: string, index: number) => {
-    setRuleData(prev => ({
-      ...prev,
-      firstConditions: prev.firstConditions.map((cond, i) => {
-        if (i === index) {
-          return {
-            ...cond,
-            leftOptions: cond.leftOptions.includes(option)
-              ? cond.leftOptions.filter(o => o !== option)
-              : [...cond.leftOptions, option]
-          };
-        }
-        return cond;
-      })
-    }));
-  };
-
-  const toggleRightOption = (option: string, index: number) => {
-    setRuleData(prev => ({
-      ...prev,
-      firstConditions: prev.firstConditions.map((cond, i) => {
-        if (i === index) {
-          return {
-            ...cond,
-            rightOptions: cond.rightOptions.includes(option)
-              ? cond.rightOptions.filter(o => o !== option)
-              : [...cond.rightOptions, option]
-          };
-        }
-        return cond;
-      })
-    }));
-  };
 
   const addApplyRule = () => {
     setRuleData(prev => ({
@@ -366,25 +359,52 @@ export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps)
   };
 
   const handleSaveAsDraft = () => {
+    if (isDuplicateMode && sourceRule && isDefineRuleUnchanged(sourceRule, ruleData)) {
+      return;
+    }
+
+    const schedule = isDuplicateMode && copiedSchedule ? copiedSchedule : 'Not scheduled';
     const formattedRule = {
       name: ruleData.name,
       description: ruleData.description,
-      locations: ruleData.locations,
-      productTypes: ruleData.productTypes,
-      lors: ruleData.lors,
-      fleetTypes: ruleData.fleetTypes,
+      brand: ruleData.brand,
+      pickupLocation: ruleData.pickupLocation,
+      sameDropoff: ruleData.sameDropoff,
+      dropOffLocation: ruleData.sameDropoff ? ruleData.pickupLocation : ruleData.dropOffLocation,
+      productCode: ruleData.productCode,
+      lor: ruleData.lor,
+      carCode: ruleData.carCode,
+      locations: ruleData.pickupLocation,
+      productTypes: ruleData.productCode ? [ruleData.productCode] : [],
+      lors: ruleData.lor?.length ? ruleData.lor : [],
+      fleetTypes: ruleData.carCode,
       condition: 'Custom condition',
       action: 'Custom action',
-      schedule: 'Not scheduled',
+      schedule,
       firstConditions: ruleData.firstConditions,
       conditionalRules: ruleData.conditionalRules,
-      elseCondition: ruleData.elseCondition
+      elseCondition: ruleData.elseCondition,
+      ...(isDuplicateMode && copiedScheduleData ? { scheduleData: copiedScheduleData } : {}),
     };
     onSave(formattedRule);
   };
 
+  const nameAlreadyExists = isDuplicateMode
+    ? isDuplicateNameTaken(ruleData.name, existingRuleNames)
+    : false;
+
+  const defineRuleUnchanged =
+    isDuplicateMode && sourceRule
+      ? isDefineRuleUnchanged(sourceRule, ruleData)
+      : false;
+
   const canSaveAsDraft = () => {
-    return ruleData.name && ruleData.firstConditions[0].enabled;
+    return (
+      ruleData.name &&
+      ruleData.firstConditions[0].enabled &&
+      !nameAlreadyExists &&
+      !defineRuleUnchanged
+    );
   };
 
   return (
@@ -402,31 +422,68 @@ export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps)
             </button>
 
             {/* Center - Title */}
-            <h1 className="text-lg text-[#2c3e50] font-semibold">Create Rule</h1>
+            <h1 className="text-lg text-[#2c3e50] font-semibold">
+              {isDuplicateMode ? 'Duplicate Rule' : 'Create Rule'}
+            </h1>
           </div>
         </div>
       </div>
+
+      {isDuplicateMode && sourceRule && (
+        <div className="max-w-7xl mx-auto px-6 pt-4">
+          <div
+            role="status"
+            className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex gap-3"
+          >
+            <Copy className="h-5 w-5 text-[#ff9800] shrink-0 mt-0.5" />
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-gray-900">Duplicating rule</p>
+              <p className="text-sm text-gray-700">
+                Creating a new rule based on &ldquo;{sourceRule.name}&rdquo;. Review the name and settings below, then save.
+              </p>
+              {duplicateInit?.hasCopiedSchedule && (
+                <p className="text-sm text-gray-600">
+                  Schedule settings from the original rule have been copied.
+                </p>
+              )}
+              {!duplicateInit?.hasFullConfig && (
+                <p className="text-sm text-amber-800">
+                  Full configuration was unavailable for this rule; review all fields before saving.
+                </p>
+              )}
+              {defineRuleUnchanged && (
+                <p className="text-sm text-amber-800">
+                  Change at least one define-rule field from the original —{' '}
+                  <span className="font-medium">Brand</span>,{' '}
+                  <span className="font-medium">Pickup/Drop-off</span>,{' '}
+                  <span className="font-medium">Product Code</span>,{' '}
+                  <span className="font-medium">LOR</span>, or{' '}
+                  <span className="font-medium">Car Code</span>. Save stays disabled until you update one of these values.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden m-6">
           {/* Rule Configuration */}
           <div className="p-6 space-y-6">
             {/* Basic Information Section */}
-            <div className="bg-[#f8f9fa] rounded-lg p-4 space-y-4">
-              <div>
-                <h3 className="text-[#2c3e50] text-base font-medium">Define Rule</h3>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#666666]">Rule Name *</Label>
-                <Input
-                  placeholder="Enter rule name"
-                  value={ruleData.name}
-                  onChange={(e) => setRuleData({ ...ruleData, name: e.target.value })}
-                  className="h-7"
-                />
-              </div>
-            </div>
+            <DefineRuleSection
+              values={getDefineRuleSectionValues(ruleData)}
+              onChange={(updates) =>
+                setRuleData({
+                  ...ruleData,
+                  ...updates,
+                  ...(updates.lor ? { lors: updates.lor } : {}),
+                })
+              }
+              nameInputId="rule-name-input"
+              nameError={nameAlreadyExists ? 'A rule with this name already exists.' : undefined}
+              duplicateDefineRuleUnchanged={defineRuleUnchanged}
+            />
 
             {/* First IF Condition - Special Structure */}
             <div className="bg-[#f8f9fa] rounded-lg p-4 space-y-4">
@@ -464,39 +521,12 @@ export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps)
 
                       {/* Left Options Multi-select */}
                       <div className="col-span-2">
-                        <Popover open={leftOptionsPopoverOpen[index]} onOpenChange={(open) => setLeftOptionsPopoverOpen(prev => ({...prev, [index]: open}))} modal={false}>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className="w-full h-7 bg-white border border-[#ced4da] rounded px-3 py-2 text-left flex items-center justify-between hover:bg-gray-50 transition-colors text-sm"
-                            >
-                              <span className={condition.leftOptions.length > 0 ? "text-gray-900" : "text-gray-400"}>
-                                {condition.leftOptions.length > 0
-                                  ? condition.leftOptions.join(', ')
-                                  : 'Select *'}
-                              </span>
-                              <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0 ml-2" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" align="start">
-                            <PopoverScrollArea className="space-y-2">
-                              {optionsForSelect.map((option) => (
-                                <div
-                                  key={option}
-                                  className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-                                  onClick={() => toggleLeftOption(option, index)}
-                                >
-                                  <Checkbox
-                                    checked={condition.leftOptions.includes(option)}
-                                    onCheckedChange={() => toggleLeftOption(option, index)}
-                                    className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
-                                  />
-                                  <span className="text-sm text-gray-900">{option}</span>
-                                </div>
-                              ))}
-                            </PopoverScrollArea>
-                          </PopoverContent>
-                        </Popover>
+                        <MultiSelect
+                          value={condition.leftOptions}
+                          onChange={(leftOptions) => updateFirstCondition(index, 'leftOptions', leftOptions)}
+                          options={optionsForSelect}
+                          placeholder="Select *"
+                        />
                       </div>
 
                       {/* Left Value Input */}
@@ -544,39 +574,12 @@ export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps)
 
                       {/* Right Options Multi-select */}
                       <div className="col-span-2">
-                        <Popover open={rightOptionsPopoverOpen[index]} onOpenChange={(open) => setRightOptionsPopoverOpen(prev => ({...prev, [index]: open}))} modal={false}>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className="w-full h-7 bg-white border border-[#ced4da] rounded px-3 py-2 text-left flex items-center justify-between hover:bg-gray-50 transition-colors text-sm"
-                            >
-                              <span className={condition.rightOptions.length > 0 ? "text-gray-900" : "text-gray-400"}>
-                                {condition.rightOptions.length > 0
-                                  ? condition.rightOptions.join(', ')
-                                  : 'Select *'}
-                              </span>
-                              <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0 ml-2" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-3 flex flex-col overflow-hidden max-h-[min(320px,var(--radix-popover-content-available-height,320px))]" align="start">
-                            <PopoverScrollArea className="space-y-2">
-                              {optionsForSelect.map((option) => (
-                                <div
-                                  key={option}
-                                  className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-                                  onClick={() => toggleRightOption(option, index)}
-                                >
-                                  <Checkbox
-                                    checked={condition.rightOptions.includes(option)}
-                                    onCheckedChange={() => toggleRightOption(option, index)}
-                                    className="data-[state=checked]:bg-[#ff9800] data-[state=checked]:border-[#ff9800]"
-                                  />
-                                  <span className="text-sm text-gray-900">{option}</span>
-                                </div>
-                              ))}
-                            </PopoverScrollArea>
-                          </PopoverContent>
-                        </Popover>
+                        <MultiSelect
+                          value={condition.rightOptions}
+                          onChange={(rightOptions) => updateFirstCondition(index, 'rightOptions', rightOptions)}
+                          options={optionsForSelect}
+                          placeholder="Select *"
+                        />
                       </div>
 
                       {/* Right Value Input */}
@@ -783,7 +786,7 @@ export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps)
                                 <div className="mt-4 space-y-4 p-4 bg-gray-50 border border-gray-200 rounded">
                                   {/* Value Input */}
                                   <div className="space-y-1.5">
-                                    <Label className="text-xs text-[#666666]">Value</Label>
+                                    <Label className="text-xs text-[#666666]">Value *</Label>
                                     <div className="w-1/4">
                                       <Input
                                         placeholder="Enter value *"
@@ -1572,7 +1575,16 @@ export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps)
           </div>
 
           {/* Footer Actions */}
-          <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+          <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-between gap-3">
+            {defineRuleUnchanged ? (
+              <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Update a define-rule field above to enable Save
+              </p>
+            ) : (
+              <div />
+            )}
+            <div className="flex items-center gap-3">
             <button
               onClick={onCancel}
               className="h-9 px-5 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-sm"
@@ -1586,6 +1598,7 @@ export function RuleCreator({ onSave, onCancel, editingRule }: RuleCreatorProps)
             >
               Save
             </button>
+            </div>
           </div>
         </div>
       </div>

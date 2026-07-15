@@ -15,6 +15,7 @@ import { MultiSelect } from './MultiSelect';
 import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { TIME_12H_SELECT_OPTIONS } from '../utils/timeFormat';
+import { RULE_CAR_CODE_OPTIONS } from '../constants/ruleDefineOptions';
 
 const NO_CHANGE = '__no_change__';
 
@@ -24,7 +25,7 @@ const LOCATION_OPTIONS = [
 ];
 
 const PRODUCT_CODE_OPTIONS = ['AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM'];
-const CAR_CODE_OPTIONS = ['ECAR', 'CCAR', 'ICAR', 'SCAR', 'FCAR', 'PCAR', 'MCAR', 'LCAR', 'XCAR', 'RCAR'];
+const CAR_CODE_OPTIONS = RULE_CAR_CODE_OPTIONS;
 const LOR_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '14', '21', '28'];
 const DATA_SOURCE_OPTIONS = ['ExpediaAPI_1xV3', 'ExpediaCOUK'];
 const DAYS_OF_WEEK_OPTIONS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

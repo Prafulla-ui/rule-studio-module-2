@@ -14,6 +14,7 @@ import { Checkbox } from './ui/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner@2.0.3';
 import { normalizeTimeTo12Hour } from '../utils/timeFormat';
+import { formatListCreatedDate } from '../utils/listDateFormat';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -72,7 +73,6 @@ interface Scheduler {
 
 interface SchedulerListProps {
   schedulers: any[];
-  schedules?: any[];
   onCreateScheduler?: () => void;
   onUpdateScheduler?: (updatedScheduler: any, options?: { skipToast?: boolean }) => void;
   onDeleteScheduler?: (schedulerId: string) => void;
@@ -283,7 +283,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
       nextRun: '',
       updateTime: scheduler.scheduleTime,
       recurrence: formatRecurrence(),
-      createdDate: scheduler.createdDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      createdDate: formatListCreatedDate(scheduler.createdDate),
       isActive: getSchedulerIsActive(scheduler, activeStates),
       importStatus: scheduler.importStatus ?? null,
       importValidationErrors: scheduler.importValidationErrors ?? [],
@@ -627,10 +627,11 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                 <div className="flex items-center gap-2">
                   <CustomButton
                     variant="outline"
+                    size="sm"
                     onClick={handleOpenFilterDrawer}
-                    className={hasActiveFilters ? 'border-[#ff9800] bg-orange-50' : ''}
+                    className={`rounded ${hasActiveFilters ? 'border-[#ff9800] bg-orange-50' : ''}`}
                   >
-                    <Filter className={`h-4 w-4 mr-2 ${hasActiveFilters ? 'text-[#ff9800]' : ''}`} />
+                    <Filter className={`h-4 w-4 ${hasActiveFilters ? 'text-[#ff9800]' : ''}`} />
                     Filter
                     {hasActiveFilters && (
                       <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff9800] text-white text-[10px] font-semibold leading-none">
@@ -849,7 +850,6 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                   />
                 </th>
                 <th className={`px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap ${STICKY_COL_NAME_HEAD} ${STICKY_SHADOW} bg-gray-50`}>Name</th>
-                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Status</th>
                 <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Created Date</th>
                 <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Submission Type</th>
                 <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Rate Basis</th>
@@ -873,7 +873,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
             <tbody className="divide-y divide-gray-200">
               {filteredSchedulers.length === 0 ? (
                 <tr>
-                  <td colSpan={21} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={20} className="px-4 py-12 text-center text-gray-500">
                     No {statusTab} schedulers found.
                     {(searchQuery || hasActiveFilters) && ' Try adjusting your search or filters.'}
                   </td>
@@ -931,15 +931,6 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                         </button>
                       )}
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      scheduler.isActive 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {scheduler.isActive ? 'Active' : 'Inactive'}
-                    </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.createdDate}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.submissionType}</td>

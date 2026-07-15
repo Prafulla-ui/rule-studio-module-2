@@ -1,16 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Search, Filter, Edit, Trash2, Plus, Calendar, Clock, LayoutGrid, List, MoreVertical, Play, Pause, Delete, X, Info } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, Edit, Trash2, Plus, LayoutGrid, X, Info, Copy, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { CustomButton } from './CustomButton';
 import { toast } from 'sonner@2.0.3';
-import { RuleScheduleDrawer } from './RuleScheduleDrawer';
 import { RuleEditDrawer } from './RuleEditDrawer';
-import { ScheduleEditDrawer } from './ScheduleEditDrawer';
 import { SchedulerList } from './SchedulerList';
+import {
+  RuleFilterDrawer,
+  emptyRuleFilters,
+  type RuleFilterState,
+  type RuleFilterOptions,
+} from './RuleFilterDrawer';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Switch } from './ui/switch';
 import { CustomSelect } from './CustomSelect';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { applyImportValidation } from '../utils/schedulerImportValidation';
+import { formatListCreatedDate } from '../utils/listDateFormat';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +42,168 @@ interface Rule {
   executionCount: number;
   revenueImpact: string;
   scheduleNames?: string[];
+  pickupLocation?: string[];
+  dropOffLocation?: string[];
+  sameDropoff?: boolean;
+  locations?: string[];
+  brand?: string;
+  productCode?: string;
+  productTypes?: string[];
+  lor?: string[];
+  lors?: string[];
+  carCode?: string[];
 }
+
+function formatRuleListCellText(values: string[] | undefined): string {
+  if (!values?.length) {
+    return '—';
+  }
+  return values.join(', ');
+}
+
+const STICKY_COL_RULE_NAME = 'sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px]';
+const STICKY_COL_RULE_NAME_HEAD = 'sticky left-0 z-30 w-[220px] min-w-[220px] max-w-[220px]';
+const STICKY_SHADOW = 'border-r border-gray-200 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]';
+
+function getRulePickupLocations(rule: Rule): string[] {
+  if (rule.pickupLocation?.length) {
+    return rule.pickupLocation;
+  }
+  if (rule.locations?.length) {
+    return rule.locations;
+  }
+  if (rule.location) {
+    return [rule.location];
+  }
+  return [];
+}
+
+function getRuleDropoffLocations(rule: Rule): string[] {
+  const pickupLocations = getRulePickupLocations(rule);
+  if (rule.sameDropoff !== false) {
+    return pickupLocations;
+  }
+  if (rule.dropOffLocation?.length) {
+    return rule.dropOffLocation;
+  }
+  return pickupLocations;
+}
+
+function getRuleBrand(rule: Rule): string {
+  return rule.brand || '—';
+}
+
+function getRuleProductCode(rule: Rule): string {
+  if (rule.productCode) {
+    return rule.productCode;
+  }
+  if (rule.productTypes?.length) {
+    return rule.productTypes[0];
+  }
+  if (rule.productType) {
+    return rule.productType;
+  }
+  return '—';
+}
+
+function getRuleLorValues(rule: Rule): string[] {
+  if (rule.lor?.length) {
+    return rule.lor;
+  }
+  if (rule.lors?.length) {
+    return rule.lors;
+  }
+  return [];
+}
+
+function getRuleCarCodeValues(rule: Rule): string[] {
+  if (rule.carCode?.length) {
+    return rule.carCode;
+  }
+  if (rule.fleetTypes?.length) {
+    return rule.fleetTypes;
+  }
+  return [];
+}
+
+function getRuleFieldValues(rule: Rule, field: keyof RuleFilterState): string[] {
+  switch (field) {
+    case 'ruleName':
+      return rule.name ? [rule.name] : [];
+    case 'brand':
+      return rule.brand ? [rule.brand] : [];
+    case 'pickupLocation':
+      return getRulePickupLocations(rule);
+    case 'dropoffLocation':
+      return getRuleDropoffLocations(rule);
+    case 'productCode': {
+      const code = getRuleProductCode(rule);
+      return code !== '—' ? [code] : [];
+    }
+    case 'lor':
+      return getRuleLorValues(rule);
+    case 'carCode':
+      return getRuleCarCodeValues(rule);
+    case 'createdDate': {
+      const formatted = formatListCreatedDate(rule.createdDate);
+      return formatted !== '—' ? [formatted] : [];
+    }
+    default:
+      return [];
+  }
+}
+
+function buildRuleFilterOptions(rules: Rule[]): RuleFilterOptions {
+  const options = emptyRuleFilters();
+  const fields = Object.keys(options) as (keyof RuleFilterState)[];
+
+  rules.forEach((rule) => {
+    fields.forEach((field) => {
+      getRuleFieldValues(rule, field).forEach((value) => {
+        if (value && !options[field].includes(value)) {
+          options[field].push(value);
+        }
+      });
+    });
+  });
+
+  fields.forEach((field) => {
+    options[field].sort((a, b) => a.localeCompare(b));
+  });
+
+  return options;
+}
+
+function ruleMatchesFilters(rule: Rule, filters: RuleFilterState): boolean {
+  const fields = Object.keys(filters) as (keyof RuleFilterState)[];
+  return fields.every((field) => {
+    const selected = filters[field];
+    if (selected.length === 0) return true;
+    const values = getRuleFieldValues(rule, field);
+    return selected.some((item) => values.includes(item));
+  });
+}
+
+function hasAnyActiveRuleFilters(filters: RuleFilterState): boolean {
+  return Object.values(filters).some((values) => values.length > 0);
+}
+
+function countActiveRuleFilterFields(filters: RuleFilterState): number {
+  return Object.values(filters).filter((values) => values.length > 0).length;
+}
+
+const RULE_FILTER_LABELS: Record<keyof RuleFilterState, string> = {
+  ruleName: 'Rule Name',
+  brand: 'Brand',
+  pickupLocation: 'PickUp',
+  dropoffLocation: 'Dropoff',
+  productCode: 'Product Code',
+  lor: 'LOR',
+  carCode: 'Car Code',
+  createdDate: 'Created Date',
+};
+
+type RuleStatusTab = 'active' | 'inactive';
 
 interface RuleListProps {
   rules: Rule[];
@@ -47,7 +213,9 @@ interface RuleListProps {
   onUpdateRule: (ruleId: string, updatedData: any) => void;
   onEdit: (rule: Rule) => void;
   onCreateRule?: () => void;
-  onCreateSchedule?: () => void;
+  onDuplicateRule?: (rule: Rule) => void;
+  lastCreatedRuleId?: string | null;
+  onHighlightConsumed?: () => void;
   onCreateScheduler?: () => void;
   onUpdateScheduler?: (updatedScheduler: any, options?: { skipToast?: boolean }) => void;
   onDeleteScheduler?: (schedulerId: string) => void;
@@ -55,11 +223,12 @@ interface RuleListProps {
   onBulkDeleteSchedulers?: (schedulerIds: string[]) => void;
 }
 
-export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdateRule, onEdit, onCreateRule, onCreateSchedule, onCreateScheduler, onUpdateScheduler, onDeleteScheduler, onBulkUpdateSchedulers, onBulkDeleteSchedulers }: RuleListProps) {
+export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdateRule, onEdit, onCreateRule, onDuplicateRule, lastCreatedRuleId, onHighlightConsumed, onCreateScheduler, onUpdateScheduler, onDeleteScheduler, onBulkUpdateSchedulers, onBulkDeleteSchedulers }: RuleListProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [fleetTypeFilter, setFleetTypeFilter] = useState('all');
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<RuleFilterState>(emptyRuleFilters());
+  const [appliedFilters, setAppliedFilters] = useState<RuleFilterState>(emptyRuleFilters());
   const [activeTab, setActiveTab] = useState('manage-scheduler');
-  const [scheduleDrawerOpen, setScheduleDrawerOpen] = useState(false);
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,14 +236,19 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
   const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<Rule | null>(null);
-  const [scheduleEditDrawerOpen, setScheduleEditDrawerOpen] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<any | null>(null);
-  const [deleteScheduleDialogOpen, setDeleteScheduleDialogOpen] = useState(false);
-  const [scheduleToDelete, setScheduleToDelete] = useState<any | null>(null);
+  const [singleRuleStatusDialogOpen, setSingleRuleStatusDialogOpen] = useState(false);
+  const [pendingRuleStatus, setPendingRuleStatus] = useState<{
+    ruleId: string;
+    action: 'activate' | 'deactivate';
+    name: string;
+  } | null>(null);
+  const [highlightedRuleId, setHighlightedRuleId] = useState<string | null>(null);
+  const [ruleStatusTab, setRuleStatusTab] = useState<RuleStatusTab>('active');
+  const [showRightArrow, setShowRightArrow] = useState(true);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
   
   // First-time user states
-  const [isFirstTimeRules, setIsFirstTimeRules] = useState(true);
-  const [isFirstTimeStrategy, setIsFirstTimeStrategy] = useState(true);
+  const [isFirstTimeRules, setIsFirstTimeRules] = useState(() => rules.length === 0);
   const [isFirstTimeScheduler, setIsFirstTimeScheduler] = useState(true);
   const [demoSchedulerData, setDemoSchedulerData] = useState(() =>
     demoSchedulers.map((scheduler) =>
@@ -85,197 +259,19 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
   );
 
   useEffect(() => {
+    if (rules.length > 0) {
+      setIsFirstTimeRules(false);
+    }
+  }, [rules.length]);
+
+  useEffect(() => {
     if (schedulers.length > 0) {
       setIsFirstTimeScheduler(false);
     }
   }, [schedulers.length]);
-  
-  // Schedule-specific filters
-  const [scheduleSearchQuery, setScheduleSearchQuery] = useState('');
-  const [scheduleStatusFilter, setScheduleStatusFilter] = useState('all');
-  const [scheduleViewMode, setScheduleViewMode] = useState<'card' | 'list'>('list');
-  
-  // Scheduler metadata mapping
-  const schedulerMetadata: { [key: string]: { location: string; product: string; lor: string; daysOut: string; car: string } } = {
-    'BRS_181-300_LOR28': {
-      location: 'BGLV1-PDX, BGLV1-SFO, BGLV1-BGLV1',
-      product: 'AD, AE, AF',
-      lor: '1, 2, 3, 4',
-      daysOut: '181-300',
-      car: 'C, D'
-    },
-    'BRS_181-300_LOR21': {
-      location: 'BGLV1-PDX, BGLV1-SFO',
-      product: 'AD, AE',
-      lor: '1, 2, 3, 4',
-      daysOut: '181-300',
-      car: 'C, D'
-    },
-    'BRS_181-300_LOR14': {
-      location: 'BGLV1-BGLV1, BGLV1-PHX',
-      product: 'AF',
-      lor: '3, 4',
-      daysOut: '181-300',
-      car: 'A, B'
-    },
-    'BRS_181-300_LOR13': {
-      location: 'BGLV1-PDX, BGLV1-BGLV1',
-      product: 'AD',
-      lor: '1, 2, 3',
-      daysOut: '181-300',
-      car: 'B, C'
-    },
-    'BRS_181-300_LOR12': {
-      location: 'BGLV1-SFO, BGLV1-PHX',
-      product: 'AD, AE',
-      lor: '1, 2',
-      daysOut: '181-300',
-      car: 'A, B, C'
-    },
-    'BRS_181-300_LOR11': {
-      location: 'BGLV1-PHX',
-      product: 'AD',
-      lor: '1, 2',
-      daysOut: '181-300',
-      car: 'A, B'
-    }
-  };
-  
-  // Mock schedules data
-  const [schedules, setSchedules] = useState([
-    {
-      id: 'sch-1',
-      scheduleName: 'Weekend Premium Pricing',
-      location: ['BGLV1-PDX', 'BGLV1-SFO'],
-      productType: ['AD', 'AE'],
-      lor: ['1', '2', '3', '4'],
-      carType: ['C', 'D'],
-      ruleName: ['Weekend Premium Surge'],
-      scheduler: 'BRS_181-300_LOR28',
-      startDate: '2025-11-15',
-      startTime: '06:00',
-      endDate: '2025-12-15',
-      endTime: '23:00',
-      repeat: 'Weekly - Sat, Sun',
-      status: 'active'
-    },
-    {
-      id: 'sch-2',
-      scheduleName: 'Holiday Special',
-      location: ['BGLV1-BGLV1', 'BGLV1-PHX'],
-      productType: ['AF'],
-      lor: ['3', '4'],
-      carType: ['A', 'B'],
-      ruleName: ['Holiday Peak Pricing'],
-      scheduler: 'BRS_181-300_LOR21',
-      startDate: '2025-12-20',
-      startTime: '00:00',
-      endDate: '2026-01-05',
-      endTime: '23:59',
-      repeat: 'Never',
-      status: 'active'
-    },
-    {
-      id: 'sch-3',
-      scheduleName: 'Weekday Discount',
-      location: ['BGLV1-PHX'],
-      productType: ['AD'],
-      lor: ['1', '2'],
-      carType: ['A', 'B'],
-      ruleName: ['Weekday Economy Boost', 'Low Utilization Discount'],
-      scheduler: 'BRS_181-300_LOR14',
-      startDate: '2025-11-13',
-      startTime: '09:00',
-      endDate: '',
-      endTime: '',
-      repeat: 'Daily - Every 1 day(s)',
-      status: 'inactive'
-    },
-    {
-      id: 'sch-4',
-      scheduleName: 'Morning Rush',
-      location: ['BGLV1-PDX', 'BGLV1-BGLV1'],
-      productType: ['AD'],
-      lor: ['1', '2', '3'],
-      carType: ['B', 'C'],
-      ruleName: ['Airport Rush Hour Premium'],
-      scheduler: 'BRS_181-300_LOR13',
-      startDate: '2025-11-10',
-      startTime: '06:00',
-      endDate: '',
-      endTime: '10:00',
-      repeat: 'Weekly - Mon, Tue, Wed, Thu, Fri',
-      status: 'active'
-    },
-    {
-      id: 'sch-5',
-      scheduleName: 'Evening Peak',
-      location: ['BGLV1-SFO', 'BGLV1-PHX'],
-      productType: ['AD', 'AE'],
-      lor: ['1', '2'],
-      carType: ['A', 'B', 'C'],
-      ruleName: ['Airport Rush Hour Premium', 'High Demand Premium'],
-      scheduler: 'BRS_181-300_LOR12',
-      startDate: '2025-11-12',
-      startTime: '16:00',
-      endDate: '',
-      endTime: '20:00',
-      repeat: 'Weekly - Mon, Tue, Wed, Thu, Fri',
-      status: 'active'
-    },
-    {
-      id: 'sch-6',
-      scheduleName: 'Mag 7 Match',
-      location: ['BGLV1-PDX', 'BGLV1-SFO', 'BGLV1-BGLV1'],
-      productType: ['AD', 'AE', 'AF'],
-      lor: ['1', '2', '3', '4'],
-      carType: ['C', 'D'],
-      ruleName: ['Competitor Match - SUV', 'Luxury Fleet Premium'],
-      scheduler: 'BRS_181-300_LOR11',
-      startDate: '2025-11-01',
-      startTime: '00:00',
-      endDate: '',
-      endTime: '',
-      repeat: 'Daily - Every 1 day(s)',
-      status: 'active'
-    },
-    {
-      id: 'sch-7',
-      scheduleName: 'Early Bird Special',
-      location: ['BGLV1-PHX', 'BGLV1-SFO'],
-      productType: ['AD'],
-      lor: ['3', '4'],
-      carType: ['A', 'B'],
-      ruleName: ['Early Bird Discount'],
-      scheduler: 'BRS_181-300_LOR28',
-      startDate: '2025-11-20',
-      startTime: '05:00',
-      endDate: '2026-02-28',
-      endTime: '09:00',
-      repeat: 'Daily - Every 1 day(s)',
-      status: 'inactive'
-    },
-    {
-      id: 'sch-8',
-      scheduleName: 'Monthly Subscriber Deal',
-      location: ['BGLV1-PDX', 'BGLV1-SFO', 'BGLV1-BGLV1', 'BGLV1-PHX'],
-      productType: ['AF', 'AG'],
-      lor: ['4'],
-      carType: ['A', 'B', 'C'],
-      ruleName: ['Monthly Subscriber Discount', 'Long Term Loyalty Bonus', 'Retention Pricing'],
-      scheduler: 'BRS_181-300_LOR21',
-      startDate: '2025-10-01',
-      startTime: '00:00',
-      endDate: '',
-      endTime: '',
-      repeat: 'Daily - Every 1 day(s)',
-      status: 'active'
-    }
-  ]);
 
   // Show empty arrays for first-time user mode
   const displayRules = isFirstTimeRules ? [] : rules;
-  const displaySchedules = isFirstTimeStrategy ? [] : schedules;
   const displaySchedulers =
     schedulers.length > 0
       ? schedulers
@@ -315,58 +311,170 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
   };
 
   // Filter rules
-  const filteredRules = displayRules.filter(rule => {
-    const matchesSearch = rule.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         rule.condition.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         rule.action.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
+  const isRuleActive = (status: string) => status === 'active' || status === 'scheduled';
 
-  // Filter schedules
-  const filteredSchedules = displaySchedules.filter(schedule => {
-    const matchesSearch = schedule.scheduleName.toLowerCase().includes(scheduleSearchQuery.toLowerCase()) ||
-                         schedule.ruleName.some(name => name.toLowerCase().includes(scheduleSearchQuery.toLowerCase())) ||
-                         schedule.location.some(loc => loc.toLowerCase().includes(scheduleSearchQuery.toLowerCase()));
-    const matchesStatus = scheduleStatusFilter === 'all' || schedule.status === scheduleStatusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const activeRuleCount = displayRules.filter((rule) => isRuleActive(rule.status)).length;
+  const inactiveRuleCount = displayRules.length - activeRuleCount;
 
-  // Function to count schedules linked to a rule
-  const getScheduleCount = (rule: any) => {
-    // If rule is in draft or inactive state, it's not linked to any schedule
-    if (rule.status === 'draft' || rule.status === 'inactive') {
-      return 0;
-    }
-    
-    // Return the scheduleCount from the rule object
-    return rule.scheduleCount || 0;
-  };
+  const filterOptions = useMemo(() => buildRuleFilterOptions(displayRules), [displayRules]);
+
+  const filteredRules = useMemo(() => {
+    return displayRules.filter((rule) => {
+      if (ruleStatusTab === 'active' && !isRuleActive(rule.status)) {
+        return false;
+      }
+      if (ruleStatusTab === 'inactive' && isRuleActive(rule.status)) {
+        return false;
+      }
+
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        const matchesSearch =
+          rule.name.toLowerCase().includes(query) ||
+          rule.condition.toLowerCase().includes(query) ||
+          rule.action.toLowerCase().includes(query);
+        if (!matchesSearch) {
+          return false;
+        }
+      }
+
+      return ruleMatchesFilters(rule, appliedFilters);
+    });
+  }, [displayRules, ruleStatusTab, searchQuery, appliedFilters]);
+
+  const hasActiveFilters = hasAnyActiveRuleFilters(appliedFilters);
+  const activeFilterCount = countActiveRuleFilterFields(appliedFilters);
+  const activeFilterChips = useMemo(() => {
+    const fields = Object.keys(appliedFilters) as (keyof RuleFilterState)[];
+    return fields.flatMap((field) =>
+      appliedFilters[field].map((value) => ({
+        field,
+        value,
+        label: `${RULE_FILTER_LABELS[field]}: ${value}`,
+      }))
+    );
+  }, [appliedFilters]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredRules.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredRules.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedRules = filteredRules.slice(startIndex, startIndex + itemsPerPage);
 
-  const handleScheduleClick = (rule: Rule) => {
-    setEditingRule(rule);
-    setScheduleDrawerOpen(true);
-  };
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, appliedFilters, ruleStatusTab, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (!lastCreatedRuleId) {
+      return;
+    }
+
+    const createdRule = rules.find((rule) => rule.id === lastCreatedRuleId);
+
+    setIsFirstTimeRules(false);
+    setActiveTab('manage-rules');
+    setRuleStatusTab(
+      createdRule && isRuleActive(createdRule.status) ? 'active' : 'inactive'
+    );
+    setCurrentPage(1);
+    setHighlightedRuleId(lastCreatedRuleId);
+
+    const timer = window.setTimeout(() => {
+      setHighlightedRuleId(null);
+      onHighlightConsumed?.();
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [lastCreatedRuleId, onHighlightConsumed, rules]);
 
   const handleEditClick = (rule: Rule) => {
     setEditingRule(rule);
     setEditDrawerOpen(true);
   };
 
-  const handleSaveSchedule = (ruleId: string, updatedData: any) => {
-    const ruleName = editingRule?.name || 'Rule';
-    onUpdateRule(ruleId, updatedData);
-    setScheduleDrawerOpen(false);
-    setEditingRule(null);
-    
-    toast.success('Schedule saved successfully!', {
-      description: `"${ruleName}" has been scheduled and is now ready to execute.`,
-      duration: 4000,
+  const handleDuplicateClick = (rule: Rule) => {
+    onDuplicateRule?.(rule);
+  };
+
+  const handleOpenFilterDrawer = () => {
+    setDraftFilters({ ...appliedFilters });
+    setFilterDrawerOpen(true);
+  };
+
+  const handleApplyFilters = () => {
+    setAppliedFilters({ ...draftFilters });
+    setFilterDrawerOpen(false);
+  };
+
+  const handleResetFilters = () => {
+    setDraftFilters(emptyRuleFilters());
+  };
+
+  const handleClearFilters = () => {
+    const empty = emptyRuleFilters();
+    setAppliedFilters(empty);
+    setDraftFilters(empty);
+  };
+
+  const handleRemoveFilterChip = (field: keyof RuleFilterState, value: string) => {
+    const nextApplied = {
+      ...appliedFilters,
+      [field]: appliedFilters[field].filter((item) => item !== value),
+    };
+    setAppliedFilters(nextApplied);
+    setDraftFilters(nextApplied);
+  };
+
+  const isRuleToggleOn = (status: string) => isRuleActive(status);
+
+  const handleCloseSingleRuleStatusDialog = () => {
+    setSingleRuleStatusDialogOpen(false);
+    setPendingRuleStatus(null);
+  };
+
+  const handleOpenSingleRuleStatusDialog = (rule: Rule) => {
+    const isCurrentlyActive = isRuleToggleOn(rule.status);
+    setPendingRuleStatus({
+      ruleId: rule.id,
+      action: isCurrentlyActive ? 'deactivate' : 'activate',
+      name: rule.name,
     });
+    setSingleRuleStatusDialogOpen(true);
+  };
+
+  const handleConfirmSingleRuleStatus = () => {
+    if (!pendingRuleStatus) {
+      return;
+    }
+
+    const rule = rules.find((item) => item.id === pendingRuleStatus.ruleId);
+    if (!rule) {
+      handleCloseSingleRuleStatusDialog();
+      return;
+    }
+
+    const checked = pendingRuleStatus.action === 'activate';
+    const newStatus = checked
+      ? rule.schedule && rule.schedule !== 'Not scheduled'
+        ? 'scheduled'
+        : 'active'
+      : 'inactive';
+
+    onUpdateStatus(rule.id, newStatus);
+    setRuleStatusTab(checked ? 'active' : 'inactive');
+
+    toast.success(checked ? 'Rule activated' : 'Rule deactivated', {
+      description: `"${rule.name}" is now ${newStatus}.`,
+      duration: 3000,
+    });
+
+    handleCloseSingleRuleStatusDialog();
   };
 
   const handleSaveEdit = (ruleId: string, updatedData: any) => {
@@ -398,78 +506,25 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
     setRuleToDelete(null);
   };
 
-  const handleDeleteScheduleClick = (schedule: any) => {
-    setScheduleToDelete(schedule);
-    setDeleteScheduleDialogOpen(true);
-  };
+  const getRuleNameStickyBg = (isHighlighted: boolean) =>
+    isHighlighted ? 'bg-orange-50' : 'bg-white group-hover:bg-gray-50';
 
-  const handleConfirmScheduleDelete = () => {
-    if (scheduleToDelete) {
-      setSchedules(schedules.filter(s => s.id !== scheduleToDelete.id));
-      toast.success('Strategy deleted', {
-        description: `\"${scheduleToDelete.scheduleName}\" has been removed.`,
-        duration: 3000,
-      });
+  const handleRuleTableScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const scrollLeft = target.scrollLeft;
+    const scrollWidth = target.scrollWidth;
+    const clientWidth = target.clientWidth;
+
+    if (scrollLeft <= 10) {
+      setShowLeftArrow(false);
+      setShowRightArrow(true);
+    } else if (scrollLeft + clientWidth >= scrollWidth - 10) {
+      setShowLeftArrow(true);
+      setShowRightArrow(false);
+    } else {
+      setShowLeftArrow(true);
+      setShowRightArrow(true);
     }
-    setDeleteScheduleDialogOpen(false);
-    setScheduleToDelete(null);
-  };
-
-  const handleScheduleStatusToggle = (scheduleId: string, newStatus: string) => {
-    setSchedules(schedules.map(schedule => 
-      schedule.id === scheduleId 
-        ? { ...schedule, status: newStatus }
-        : schedule
-    ));
-    
-    const schedule = schedules.find(s => s.id === scheduleId);
-    if (schedule) {
-      toast.success(
-        newStatus === 'active' ? 'Schedule activated' : 'Schedule deactivated',
-        {
-          description: `\"${schedule.scheduleName}\" is now ${newStatus}.`,
-          duration: 3000,
-        }
-      );
-    }
-  };
-
-  const handleEditScheduleClick = (schedule: any) => {
-    setEditingSchedule(schedule);
-    setScheduleEditDrawerOpen(true);
-  };
-
-  const handleSaveScheduleEdit = (scheduleId: string, updatedData: any) => {
-    setSchedules(schedules.map(schedule => 
-      schedule.id === scheduleId 
-        ? { 
-            ...schedule,
-            scheduleName: updatedData.scheduleName,
-            location: updatedData.locations || [],
-            productType: updatedData.productTypes || [],
-            lor: updatedData.lors || [],
-            carType: updatedData.carTypes || [],
-            ruleName: updatedData.ruleNames || [],
-            startDate: updatedData.startDate,
-            endDate: updatedData.endDate,
-            repeat: updatedData.recurrencePattern !== 'Does not repeat' 
-              ? (updatedData.recurrencePattern === 'Daily' 
-                  ? `Daily - Every ${updatedData.repeatEvery} day(s)` 
-                  : updatedData.recurrencePattern === 'Weekly'
-                    ? `Weekly - ${updatedData.repeatOn.join(', ')}`
-                    : updatedData.recurrencePattern)
-              : 'Never'
-          }
-        : schedule
-    ));
-    
-    setScheduleEditDrawerOpen(false);
-    setEditingSchedule(null);
-    
-    toast.success('Schedule updated successfully!', {
-      description: `\"${updatedData.scheduleName}\" has been updated.`,
-      duration: 4000,
-    });
   };
 
   const getStatusColor = (status: string) => {
@@ -528,8 +583,12 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-72 p-3" align="start">
+                    <p className="text-sm font-medium text-[#2c3e50] mb-1.5">Schedulers = When</p>
                     <p className="text-xs text-gray-700 leading-relaxed">
-                      Define when pricing jobs run, including timing, recurrence, and activation.
+                      Set when pricing jobs run — timing, recurrence, and locations.
+                    </p>
+                    <p className="text-xs text-gray-500 leading-relaxed mt-1.5">
+                      e.g. Mon–Fri at 6 AM for LAS & PHX. Price logic lives in Rules.
                     </p>
                   </PopoverContent>
                 </Popover>
@@ -561,41 +620,12 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-72 p-3" align="start">
+                    <p className="text-sm font-medium text-[#2c3e50] mb-1.5">Rules = What</p>
                     <p className="text-xs text-gray-700 leading-relaxed">
-                      Define what pricing logic applies, including conditions and actions.
+                      Set pricing logic — conditions to check and actions to take.
                     </p>
-                  </PopoverContent>
-                </Popover>
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('manage-schedule')}
-              className={`px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeTab === 'manage-schedule'
-                  ? 'text-[#ff9800]'
-                  : 'text-[#666666] hover:text-[#ff9800]'
-              }`}
-            >
-              <span
-                className={`inline-flex items-center gap-1.5 pb-2 ${
-                  activeTab === 'manage-schedule' ? 'border-b-2 border-[#ff9800]' : ''
-                }`}
-              >
-                Manage Strategies
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-0.5 rounded hover:bg-gray-100 transition-colors"
-                      aria-label="Strategies definition"
-                    >
-                      <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 p-3" align="start">
-                    <p className="text-xs text-gray-700 leading-relaxed">
-                      Define how rules are bundled and deployed through scheduled execution plans.
+                    <p className="text-xs text-gray-500 leading-relaxed mt-1.5">
+                      e.g. Utilization &gt; 70% → lower rate 5%. Also set brand, locations, LOR & car codes.
                     </p>
                   </PopoverContent>
                 </Popover>
@@ -613,11 +643,6 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
             {activeTab === 'manage-rules' && onCreateRule && (
               <CustomButton onClick={onCreateRule} variant="primary" size="md">
                 Create Rule
-              </CustomButton>
-            )}
-            {activeTab === 'manage-schedule' && onCreateSchedule && (
-              <CustomButton onClick={onCreateSchedule} variant="primary" size="md">
-                Create Strategy
               </CustomButton>
             )}
           </div>
@@ -650,7 +675,6 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
 
           <SchedulerList
             schedulers={displaySchedulers}
-            schedules={schedules}
             onCreateScheduler={onCreateScheduler}
             onUpdateScheduler={(updated, options) => {
               if (schedulers.length > 0) {
@@ -713,7 +737,7 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                   Welcome to Rule Management
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  You haven't created any rules yet. Rules define the pricing logic and conditions that drive your automated pricing strategies.
+                  You haven't created any rules yet. Rules define the pricing logic and conditions that drive your automated pricing.
                 </p>
                 <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-6 text-left">
                   <h4 className="text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
@@ -724,7 +748,7 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                     <li>Click the "Create Rule" button above to begin</li>
                     <li>Define conditions (utilization rates, competitor pricing, time triggers)</li>
                     <li>Set actions (price adjustments, fixed pricing, competitor matching)</li>
-                    <li>Save your rule to use it in strategies</li>
+                    <li>Save your rule to use it with schedulers</li>
                   </ul>
                 </div>
                 <CustomButton 
@@ -743,28 +767,106 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
               <div className="bg-white rounded-lg border border-gray-200 p-4">
           {/* Filters Row */}
           <div className="mb-4">
-            {/* Search */}
-            <div className="max-w-md">
-              <label className="block text-xs text-[#666666] mb-1.5 h-[14px]">Search Rules</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search by name"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-7 pl-3 pr-9 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#ff9800] focus:border-[#ff9800]"
-                />
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="flex items-end gap-2">
+              {/* Search */}
+              <div className="max-w-md flex-1">
+                <label className="block text-xs text-[#666666] mb-1.5 h-[14px]">Search Rules</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-7 pl-3 pr-9 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#ff9800] focus:border-[#ff9800]"
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+              {/* Filter Button */}
+              <div className="flex items-center gap-2">
+                <CustomButton
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenFilterDrawer}
+                  className={`rounded ${hasActiveFilters ? 'border-[#ff9800] bg-orange-50' : ''}`}
+                >
+                  <Filter className={`h-4 w-4 ${hasActiveFilters ? 'text-[#ff9800]' : ''}`} />
+                  Filter
+                  {hasActiveFilters && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff9800] text-white text-[10px] font-semibold leading-none">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </CustomButton>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={handleClearFilters}
+                    className="inline-flex items-center gap-1 h-7 px-2 text-xs text-[#ff9800] hover:text-[#f57c00] hover:bg-orange-50 rounded transition-colors"
+                    aria-label="Clear all filters"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Clear filters
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Results and View Toggle */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+          {/* Results */}
+          <div className="pt-3 border-t border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex">
+              <button
+                type="button"
+                onClick={() => setRuleStatusTab('active')}
+                className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+                  ruleStatusTab === 'active'
+                    ? 'text-[#ff9800] border-b-2 border-[#ff9800]'
+                    : 'text-[#666666] hover:text-[#ff9800]'
+                }`}
+              >
+                Active ({activeRuleCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRuleStatusTab('inactive')}
+                className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+                  ruleStatusTab === 'inactive'
+                    ? 'text-[#ff9800] border-b-2 border-[#ff9800]'
+                    : 'text-[#666666] hover:text-[#ff9800]'
+                }`}
+              >
+                Inactive ({inactiveRuleCount})
+              </button>
+            </div>
             <p className="text-sm text-[#666666]">
-              Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredRules.length)} of {filteredRules.length} rules
+              {filteredRules.length === 0
+                ? `Showing 0 of ${ruleStatusTab === 'active' ? activeRuleCount : inactiveRuleCount} ${ruleStatusTab} rules`
+                : `Showing ${startIndex + 1} - ${Math.min(startIndex + itemsPerPage, filteredRules.length)} of ${filteredRules.length} ${ruleStatusTab} rule${filteredRules.length === 1 ? '' : 's'}`}
+              {hasActiveFilters && (
+                <span className="text-[#ff9800]">
+                  {' '}· {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'} applied
+                </span>
+              )}
             </p>
           </div>
+
+          {activeFilterChips.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap items-center gap-2">
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={`${chip.field}-${chip.value}`}
+                  type="button"
+                  onClick={() => handleRemoveFilterChip(chip.field, chip.value)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200 text-xs text-[#a65a00] hover:bg-orange-100 transition-colors"
+                  title="Remove filter"
+                >
+                  <span>{chip.label}</span>
+                  <X className="h-3 w-3" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
       {/* Card View */}
@@ -772,13 +874,15 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
         <div className="space-y-3">
           {paginatedRules.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-12 text-center text-gray-500">
-              No rules found. {searchQuery && 'Try adjusting your search.'}
+              No {ruleStatusTab} rules found. {(searchQuery || hasActiveFilters) && 'Try adjusting your search or filters.'}
             </div>
           ) : (
             paginatedRules.map((rule) => (
               <div
                 key={rule.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow ${
+                  highlightedRuleId === rule.id ? 'bg-orange-50 border-l-4 border-l-[#ff9800]' : ''
+                }`}
               >
                 {/* Header - Name and Actions */}
                 <div className="flex items-start justify-between gap-4">
@@ -788,6 +892,12 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
 
                   {/* Right Side - Actions */}
                   <div className="flex items-center gap-2">
+                    <Switch
+                      checked={isRuleToggleOn(rule.status)}
+                      onCheckedChange={() => handleOpenSingleRuleStatusDialog(rule)}
+                      className="data-[state=checked]:bg-[#ff9800]"
+                      aria-label={`Toggle rule status: ${rule.name}`}
+                    />
                     <button
                       onClick={() => handleEditClick(rule)}
                       className="p-1.5 hover:bg-gray-100 rounded transition-colors"
@@ -795,6 +905,16 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                     >
                       <Edit className="h-4 w-4 text-gray-600" />
                     </button>
+                    {onDuplicateRule && (
+                      <button
+                        onClick={() => handleDuplicateClick(rule)}
+                        className="p-1.5 hover:bg-orange-50 rounded transition-colors"
+                        title="Duplicate Rule"
+                        aria-label={`Duplicate rule: ${rule.name}`}
+                      >
+                        <Copy className="h-4 w-4 text-gray-600" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteClick(rule)}
                       className="p-1.5 hover:bg-red-50 rounded transition-colors"
@@ -812,34 +932,103 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
 
       {/* Table View */}
       {viewMode === 'list' && (
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 relative">
+        {showRightArrow && (
+          <div className="absolute top-0 right-0 h-11 w-16 z-10 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-l from-white via-white/95 to-transparent" />
+            <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center">
+              <ChevronsRight className="h-5 w-5 text-[#ff9800] animate-pulse drop-shadow-sm" />
+            </div>
+          </div>
+        )}
+        {showLeftArrow && (
+          <div className="absolute top-0 left-0 h-11 w-16 z-10 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 to-transparent" />
+            <div className="absolute top-1/2 left-2 -translate-y-1/2 flex items-center">
+              <ChevronsLeft className="h-5 w-5 text-[#ff9800] animate-pulse drop-shadow-sm" />
+            </div>
+          </div>
+        )}
+        <div
+          className="overflow-x-auto max-h-[720px] overflow-y-auto"
+          onScroll={handleRuleTableScroll}
+        >
+          <table className="w-full border-separate border-spacing-0">
+            <thead className="sticky top-0 z-20">
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-4 py-3 text-left text-xs text-[#666666]">Rule Name</th>
-                <th className="px-4 py-3 text-left text-xs text-[#666666] w-[15%]">Created Date</th>
-                <th className="px-4 py-3 text-center text-xs text-[#666666] w-[10%]"></th>
+                <th className={`px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap ${STICKY_COL_RULE_NAME_HEAD} ${STICKY_SHADOW} bg-gray-50`}>
+                  Rule Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Brand</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Pickup Location</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Drop-Off Location</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Product Code</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">LOR</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Car Code</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Created Date</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap w-[10%]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {paginatedRules.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-12 text-center text-gray-500">
-                    No rules found. {searchQuery && 'Try adjusting your search.'}
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                    No {ruleStatusTab} rules found. {(searchQuery || hasActiveFilters) && 'Try adjusting your search or filters.'}
                   </td>
                 </tr>
               ) : (
-                paginatedRules.map((rule) => (
-                  <tr key={rule.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-900 font-medium">{rule.name}</div>
+                paginatedRules.map((rule) => {
+                  const isHighlighted = highlightedRuleId === rule.id;
+                  const stickyBg = getRuleNameStickyBg(isHighlighted);
+
+                  return (
+                  <tr
+                    key={rule.id}
+                    className={`group transition-colors ${
+                      isHighlighted ? 'bg-orange-50 border-l-4 border-l-[#ff9800]' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <td className={`px-4 py-3 text-sm text-gray-900 ${STICKY_COL_RULE_NAME} ${STICKY_SHADOW} ${stickyBg}`}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block min-w-0 truncate font-medium text-left">
+                            {rule.name}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-sm break-words">
+                          {rule.name}
+                        </TooltipContent>
+                      </Tooltip>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-gray-700">{rule.createdDate}</div>
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      {getRuleBrand(rule)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      {formatRuleListCellText(getRulePickupLocations(rule))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      {formatRuleListCellText(getRuleDropoffLocations(rule))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      {getRuleProductCode(rule)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      {formatRuleListCellText(getRuleLorValues(rule))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      {getRuleCarCodeValues(rule).join(',')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                      {formatListCreatedDate(rule.createdDate)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={isRuleToggleOn(rule.status)}
+                          onCheckedChange={() => handleOpenSingleRuleStatusDialog(rule)}
+                          className="data-[state=checked]:bg-[#ff9800]"
+                          aria-label={`Toggle rule status: ${rule.name}`}
+                        />
                         <button
                           onClick={() => handleEditClick(rule)}
                           className="p-1.5 hover:bg-gray-100 rounded transition-colors"
@@ -847,6 +1036,16 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                         >
                           <Edit className="h-4 w-4 text-gray-600" />
                         </button>
+                        {onDuplicateRule && (
+                          <button
+                            onClick={() => handleDuplicateClick(rule)}
+                            className="p-1.5 hover:bg-orange-50 rounded transition-colors"
+                            title="Duplicate Rule"
+                            aria-label={`Duplicate rule: ${rule.name}`}
+                          >
+                            <Copy className="h-4 w-4 text-gray-600" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteClick(rule)}
                           className="p-1.5 hover:bg-red-50 rounded transition-colors"
@@ -857,7 +1056,8 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -938,426 +1138,77 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
         </>
       )}
 
-      {/* Manage Schedule Tab Content */}
-      {activeTab === 'manage-schedule' && (
-        <>
-          {/* Toggle for Testing - Switch between First-Time and Existing Flow */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Info className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-blue-900 font-medium">Demo Mode Toggle</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-blue-700">
-                {isFirstTimeStrategy ? 'First-Time User View' : 'Existing User View'}
-              </span>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!isFirstTimeStrategy}
-                  onChange={(e) => setIsFirstTimeStrategy(!e.target.checked)}
-                  className="w-4 h-4 text-[#ff9800] border-gray-300 rounded focus:ring-[#ff9800]"
-                />
-                <span className="text-xs text-blue-700">Show Existing Data</span>
-              </label>
-            </div>
-          </div>
-
-          {filteredSchedules.length === 0 && isFirstTimeStrategy ? (
-            // Empty State for First-Time Users
-            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-              <div className="max-w-md mx-auto">
-                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Clock className="h-8 w-8 text-[#ff9800]" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Welcome to Strategy Management
-                </h3>
-                <p className="text-sm text-gray-600 mb-6">
-                  You haven't created any strategies yet. Strategies combine your rules with schedulers to execute automated pricing at specific times and intervals.
-                </p>
-                <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-6 text-left">
-                  <h4 className="text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    Getting Started
-                  </h4>
-                  <ul className="text-xs text-gray-700 space-y-1.5 ml-6 list-disc">
-                    <li>Click the "Create Strategy" button above to start</li>
-                    <li>Select the rules you want to apply</li>
-                    <li>Choose a scheduler to define when the strategy runs</li>
-                    <li>Save your strategy to activate it</li>
-                  </ul>
-                </div>
-                <CustomButton 
-                  variant="primary" 
-                  onClick={onCreateSchedule}
-                  className="mx-auto"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Strategy
-                </CustomButton>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Filter Section for Schedules */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-            {/* Filters Row */}
-            <div className="grid grid-cols-12 gap-4 mb-4">
-              {/* Search */}
-              <div className="col-span-3">
-                <label className="block text-xs text-[#666666] mb-1.5 h-[14px]">Search Schedules</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search by strategy name or rule name"
-                    value={scheduleSearchQuery}
-                    onChange={(e) => setScheduleSearchQuery(e.target.value)}
-                    className="w-full h-7 pl-3 pr-9 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#ff9800] focus:border-[#ff9800]"
-                  />
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Status Filter */}
-              <div className="col-span-2">
-                <div className="flex items-center gap-1.5 mb-1.5 h-[14px]">
-                  <label className="block text-xs text-[#666666]">Status</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button className="p-0.5 hover:bg-gray-100 rounded transition-colors">
-                        <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[600px] p-0" align="start">
-                      <div className="p-4">
-                        <h4 className="text-sm font-medium text-gray-900 mb-3">Status Definitions</h4>
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-3 p-3 bg-green-50 rounded border border-green-100">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 shrink-0">
-                              Active
-                            </span>
-                            <p className="text-sm text-gray-700">
-                              Schedule is currently running and executing based on its configuration.
-                            </p>
-                          </div>
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded border border-gray-200">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700 shrink-0">
-                              Inactive
-                            </span>
-                            <p className="text-sm text-gray-700">
-                              Schedule execution is temporarily stopped. Can be reactivated anytime.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <select
-                  value={scheduleStatusFilter}
-                  onChange={(e) => setScheduleStatusFilter(e.target.value)}
-                  className="w-full h-7 px-3 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#ff9800] focus:border-[#ff9800] bg-white"
-                >
-                  <option value="all">All Status ({schedules.length})</option>
-                  <option value="active">Active ({schedules.filter(s => s.status === 'active').length})</option>
-                  <option value="inactive">Inactive ({schedules.filter(s => s.status === 'inactive').length})</option>
-                </select>
-              </div>
-
-              {/* Reset Button */}
-              <div className="col-span-1 flex items-end">
-                <button
-                  onClick={() => {
-                    setScheduleSearchQuery('');
-                    setScheduleStatusFilter('all');
-                  }}
-                  className="text-[#ff9800] hover:text-[#f57c00] transition-colors font-normal mb-1.5"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            {/* Results and View Toggle */}
-            <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-              <p className="text-sm text-[#666666]">
-                Showing {filteredSchedules.length} of {schedules.length} schedules
-              </p>
-            </div>
-          </div>
-
-          {/* Card View for Schedules */}
-          {scheduleViewMode === 'card' && (
-            <div className="space-y-3">
-              {filteredSchedules.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-12 text-center text-gray-500">
-                  No schedules found. {scheduleSearchQuery && 'Try adjusting your search.'}
-                </div>
-              ) : (
-                filteredSchedules.map((schedule) => (
-                  <div
-                    key={schedule.id}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-                  >
-                    {/* Header - Name, Status, and Actions */}
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-gray-900 font-medium">{schedule.scheduleName}</h3>
-                        <span className={`inline-flex px-2 py-0.5 text-xs rounded ${getStatusColor(schedule.status)}`}>
-                          {schedule.status.charAt(0).toUpperCase() + schedule.status.slice(1)}
-                        </span>
-                      </div>
-
-                      {/* Right Side - Actions */}
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={schedule.status === 'active'}
-                          onCheckedChange={(checked) => handleScheduleStatusToggle(schedule.id, checked ? 'active' : 'inactive')}
-                          className="data-[state=checked]:bg-[#ff9800]"
-                        />
-                        <button
-                          onClick={() => handleEditScheduleClick(schedule)}
-                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                          title="Edit Schedule"
-                        >
-                          <Edit className="h-4 w-4 text-gray-600" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteScheduleClick(schedule)}
-                          className="p-1.5 hover:bg-red-50 rounded transition-colors"
-                          title="Delete Schedule"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Details Grid */}
-                    <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200">
-                      <div>
-                        <span className="text-xs text-[#666666] block mb-1">Selected Rule</span>
-                        <span className="text-sm text-gray-900">
-                          {schedule.ruleName && schedule.ruleName.length > 0 
-                            ? schedule.ruleName[0] 
-                            : '-'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-[#666666] block mb-1">Selected Scheduler</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-900">
-                            {schedule.scheduler || '-'}
-                          </span>
-                          {schedule.scheduler && schedulerMetadata[schedule.scheduler] && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-[#ff9800] cursor-help hover:text-[#f57c00] transition-colors flex-shrink-0" />
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="top" 
-                                className="bg-white border border-gray-200 shadow-lg p-4 max-w-sm"
-                              >
-                                <div className="space-y-2">
-                                  <div className="font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-2">
-                                    Scheduler Details
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-3 text-xs">
-                                    <div>
-                                      <div className="text-[#666666] mb-0.5">Location:</div>
-                                      <div className="text-gray-900 font-medium">
-                                        {schedulerMetadata[schedule.scheduler].location}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <div className="text-[#666666] mb-0.5">Days Out:</div>
-                                      <div className="text-gray-900 font-medium">
-                                        {schedulerMetadata[schedule.scheduler].daysOut}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <div className="text-[#666666] mb-0.5">Product Code:</div>
-                                      <div className="text-gray-900 font-medium">
-                                        {schedulerMetadata[schedule.scheduler].product}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <div className="text-[#666666] mb-0.5">LoR:</div>
-                                      <div className="text-gray-900 font-medium">
-                                        {schedulerMetadata[schedule.scheduler].lor}
-                                      </div>
-                                    </div>
-                                    <div className="col-span-2">
-                                      <div className="text-[#666666] mb-0.5">Car Codes:</div>
-                                      <div className="text-gray-900 font-medium">
-                                        {schedulerMetadata[schedule.scheduler].car}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Schedules Table */}
-          {scheduleViewMode === 'list' && (
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 py-3 text-left text-xs text-[#666666]">Strategy Name</th>
-                    <th className="px-4 py-3 text-left text-xs text-[#666666]">Selected Rule</th>
-                    <th className="px-4 py-3 text-left text-xs text-[#666666]">Selected Scheduler</th>
-                    <th className="px-4 py-3 text-left text-xs text-[#666666]">Status</th>
-                    <th className="px-4 py-3 text-left text-xs text-[#666666]">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredSchedules.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
-                        No schedules found. {scheduleSearchQuery && 'Try adjusting your search.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredSchedules.map((schedule) => (
-                      <tr key={schedule.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-900 font-medium">{schedule.scheduleName}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-900">
-                            {schedule.ruleName && schedule.ruleName.length > 0 
-                              ? schedule.ruleName[0] 
-                              : '-'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm text-gray-900">
-                              {schedule.scheduler || '-'}
-                            </div>
-                            {schedule.scheduler && schedulerMetadata[schedule.scheduler] && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="h-4 w-4 text-[#ff9800] cursor-help hover:text-[#f57c00] transition-colors" />
-                                </TooltipTrigger>
-                                <TooltipContent 
-                                  side="top" 
-                                  className="bg-white border border-gray-200 shadow-lg p-4 max-w-sm"
-                                >
-                                  <div className="space-y-2">
-                                    <div className="font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-2">
-                                      Scheduler Details
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3 text-xs">
-                                      <div>
-                                        <div className="text-[#666666] mb-0.5">Location:</div>
-                                        <div className="text-gray-900 font-medium">
-                                          {schedulerMetadata[schedule.scheduler].location}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="text-[#666666] mb-0.5">Days Out:</div>
-                                        <div className="text-gray-900 font-medium">
-                                          {schedulerMetadata[schedule.scheduler].daysOut}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="text-[#666666] mb-0.5">Product Code:</div>
-                                        <div className="text-gray-900 font-medium">
-                                          {schedulerMetadata[schedule.scheduler].product}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="text-[#666666] mb-0.5">LoR:</div>
-                                        <div className="text-gray-900 font-medium">
-                                          {schedulerMetadata[schedule.scheduler].lor}
-                                        </div>
-                                      </div>
-                                      <div className="col-span-2">
-                                        <div className="text-[#666666] mb-0.5">Car Codes:</div>
-                                        <div className="text-gray-900 font-medium">
-                                          {schedulerMetadata[schedule.scheduler].car}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-1 text-xs rounded ${getStatusColor(schedule.status)}`}>
-                            {schedule.status.charAt(0).toUpperCase() + schedule.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={schedule.status === 'active'}
-                              onCheckedChange={(checked) => handleScheduleStatusToggle(schedule.id, checked ? 'active' : 'inactive')}
-                              className="data-[state=checked]:bg-[#ff9800]"
-                            />
-                            <button
-                              onClick={() => handleEditScheduleClick(schedule)}
-                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                              title="Edit Schedule"
-                            >
-                              <Edit className="h-4 w-4 text-gray-600" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteScheduleClick(schedule)}
-                              className="p-1.5 hover:bg-red-50 rounded transition-colors"
-                              title="Delete Schedule"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          )}
-            </>
-          )}
-        </>
-      )}
-
-      {/* Schedule/Edit Drawer */}
-      <RuleScheduleDrawer 
-        open={scheduleDrawerOpen}
-        onOpenChange={setScheduleDrawerOpen}
-        rule={editingRule}
-        onSave={handleSaveSchedule}
-      />
       <RuleEditDrawer 
         open={editDrawerOpen}
         onOpenChange={setEditDrawerOpen}
         rule={editingRule}
         onSave={handleSaveEdit}
       />
-      <ScheduleEditDrawer 
-        open={scheduleEditDrawerOpen}
-        onOpenChange={setScheduleEditDrawerOpen}
-        schedule={editingSchedule}
-        onSave={handleSaveScheduleEdit}
-        rules={rules}
+      <RuleFilterDrawer
+        isOpen={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        options={filterOptions}
+        draftFilters={draftFilters}
+        onDraftChange={setDraftFilters}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
       />
+
+      {/* Single Activate / Deactivate Confirmation Dialog */}
+      <AlertDialog
+        open={singleRuleStatusDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseSingleRuleStatusDialog();
+          }
+        }}
+      >
+        <AlertDialogContent className="overflow-hidden">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="break-words">
+              {pendingRuleStatus?.action === 'activate'
+                ? `Activate rule: ${pendingRuleStatus.name}?`
+                : `Deactivate rule: ${pendingRuleStatus?.name ?? 'Rule'}?`}
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+
+          <div className="space-y-3 min-w-0">
+            <AlertDialogDescription>
+              {pendingRuleStatus?.action === 'activate'
+                ? 'You are about to activate this rule.'
+                : 'You are about to deactivate this rule.'}
+            </AlertDialogDescription>
+
+            <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm">
+              <p className="text-amber-900 font-medium mb-2">What will happen:</p>
+              {pendingRuleStatus?.action === 'activate' ? (
+                <ul className="space-y-1 text-amber-800">
+                  <li>• Status will change to Active</li>
+                  <li>• The rule will be available for scheduling and execution</li>
+                </ul>
+              ) : (
+                <ul className="space-y-1 text-amber-800">
+                  <li>• Status will change to Inactive</li>
+                  <li>• The rule will no longer run until reactivated</li>
+                  <li>• You can reactivate it later from the table</li>
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <CustomButton variant="secondary" onClick={handleCloseSingleRuleStatusDialog}>
+              Cancel
+            </CustomButton>
+            <CustomButton
+              variant={pendingRuleStatus?.action === 'activate' ? 'primary' : 'outline'}
+              onClick={handleConfirmSingleRuleStatus}
+            >
+              {pendingRuleStatus?.action === 'activate' ? 'Activate Rule' : 'Deactivate Rule'}
+            </CustomButton>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -1397,45 +1248,6 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Delete Schedule Dialog */}
-      <AlertDialog open={deleteScheduleDialogOpen} onOpenChange={setDeleteScheduleDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Strategy: {scheduleToDelete?.scheduleName}?</AlertDialogTitle>
-          </AlertDialogHeader>
-          
-          <div className="space-y-3">
-            <AlertDialogDescription>
-              You're about to permanently delete this pricing strategy. This action cannot be undone.
-            </AlertDialogDescription>
-            
-            <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm">
-              <p className="text-amber-900 font-medium mb-2">⚠️ What will happen:</p>
-              <ul className="space-y-1 text-amber-800">
-                <li>• All scheduled executions will be cancelled</li>
-                <li>• Historical data for this strategy will be archived</li>
-                <li>• Pricing will revert to default settings for affected fleet types</li>
-                <li>• This strategy cannot be recovered after deletion</li>
-              </ul>
-            </div>
-            
-            <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-medium text-gray-900">"{scheduleToDelete?.scheduleName}"</span>?
-            </AlertDialogDescription>
-          </div>
-          
-          <AlertDialogFooter>
-            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmScheduleDelete}
-              className="h-9 bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete Strategy
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -1449,7 +1261,7 @@ const demoSchedulers = [
     dropOffLocation: ['BGLV1-PDX', 'BGLV1-SFO'],
     sameDropoff: true,
     productCode: ['AD', 'AE'],
-    carCode: ['C', 'D'],
+    carCode: ['C', 'E'],
     lorCode: ['1', '2', '3'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1476,7 +1288,7 @@ const demoSchedulers = [
     dropOffLocation: ['Los Angeles', 'San Diego'],
     sameDropoff: false,
     productCode: ['AF', 'AG'],
-    carCode: ['FCAR', 'PCAR'],
+    carCode: ['F', 'G'],
     lorCode: ['2', '3', '4'],
     getRateShoppedData: true,
     rateType: 'finalRate',
@@ -1503,7 +1315,7 @@ const demoSchedulers = [
     dropOffLocation: ['New York', 'Chicago'],
     sameDropoff: false,
     productCode: ['AD'],
-    carCode: ['ECAR', 'CCAR'],
+    carCode: ['A', 'B'],
     lorCode: [],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1533,7 +1345,7 @@ const demoSchedulers = [
     dropOffLocation: ['BGLV1-PDX', 'BGLV1-SFO', 'BGLV1-BGLV1'],
     sameDropoff: false,
     productCode: ['AD', 'AE', 'AF'],
-    carCode: ['C', 'D'],
+    carCode: ['C', 'E'],
     lorCode: ['1', '2', '3', '4'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1559,7 +1371,7 @@ const demoSchedulers = [
     dropOffLocation: ['BGLV1-PDX', 'BGLV1-SFO'],
     sameDropoff: true,
     productCode: ['AD', 'AE'],
-    carCode: ['C', 'D'],
+    carCode: ['C', 'E'],
     lorCode: ['1', '2', '3', '4'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1694,7 +1506,7 @@ const demoSchedulers = [
     dropOffLocation: ['New York', 'Chicago'],
     sameDropoff: true,
     productCode: ['AD', 'AE'],
-    carCode: ['ECAR', 'CCAR'],
+    carCode: ['A', 'B'],
     lorCode: ['5', '6', '7'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1720,7 +1532,7 @@ const demoSchedulers = [
     dropOffLocation: ['Los Angeles', 'San Diego'],
     sameDropoff: false,
     productCode: ['AF', 'AG'],
-    carCode: ['FCAR', 'PCAR'],
+    carCode: ['F', 'G'],
     lorCode: ['2', '3', '4'],
     getRateShoppedData: true,
     rateType: 'finalRate',
@@ -1746,7 +1558,7 @@ const demoSchedulers = [
     dropOffLocation: ['Chicago', 'Houston'],
     sameDropoff: true,
     productCode: ['AD'],
-    carCode: ['ICAR', 'SCAR'],
+    carCode: ['K', 'L'],
     lorCode: ['1', '2', '3'],
     getRateShoppedData: false,
     rateType: 'baseRate',
@@ -1774,7 +1586,7 @@ const demoSchedulers = [
     dropOffLocation: ['Phoenix', 'Dallas'],
     sameDropoff: false,
     productCode: ['AE', 'AF', 'AG'],
-    carCode: ['MCAR', 'LCAR'],
+    carCode: ['H', 'L'],
     lorCode: ['7', '8', '9', '10'],
     getRateShoppedData: true,
     rateType: 'finalRate',
@@ -1801,7 +1613,7 @@ const demoSchedulers = [
     dropOffLocation: ['Philadelphia', 'San Antonio'],
     sameDropoff: true,
     productCode: ['AD', 'AE'],
-    carCode: ['ECAR', 'CCAR', 'ICAR'],
+    carCode: ['A', 'B', 'C'],
     lorCode: ['1', '2', '3', '4', '5'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1827,7 +1639,7 @@ const demoSchedulers = [
     dropOffLocation: ['San Jose', 'New York'],
     sameDropoff: false,
     productCode: ['AH', 'AI'],
-    carCode: ['XCAR', 'RCAR'],
+    carCode: ['XA', 'XB'],
     lorCode: ['14', '21', '28'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1855,7 +1667,7 @@ const demoSchedulers = [
     dropOffLocation: ['Miami', 'Orlando'],
     sameDropoff: true,
     productCode: ['AD', 'AE'],
-    carCode: ['ECAR', 'SCAR'],
+    carCode: ['A', 'S'],
     lorCode: ['3', '4', '5'],
     getRateShoppedData: true,
     rateType: 'finalRate',
@@ -1883,7 +1695,7 @@ const demoSchedulers = [
     dropOffLocation: ['Denver', 'Salt Lake City'],
     sameDropoff: false,
     productCode: ['AF'],
-    carCode: ['CCAR', 'ICAR'],
+    carCode: ['B', 'C'],
     lorCode: ['2', '3'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1913,7 +1725,7 @@ const demoSchedulers = [
     dropOffLocation: ['Boston', 'Hartford'],
     sameDropoff: true,
     productCode: ['AD'],
-    carCode: ['FCAR'],
+    carCode: ['F'],
     lorCode: ['6', '7'],
     getRateShoppedData: true,
     rateType: 'baseRate',
@@ -1941,7 +1753,7 @@ const demoSchedulers = [
     dropOffLocation: ['Atlanta', 'Charlotte'],
     sameDropoff: true,
     productCode: ['AE', 'AF', 'AG'],
-    carCode: ['PCAR', 'LCAR'],
+    carCode: ['G', 'H'],
     lorCode: ['1', '2', '3', '4'],
     getRateShoppedData: true,
     rateType: 'finalRate',
@@ -1969,7 +1781,7 @@ const demoSchedulers = [
     dropOffLocation: ['Seattle', 'Portland'],
     sameDropoff: false,
     productCode: ['AH'],
-    carCode: ['MCAR'],
+    carCode: ['H'],
     lorCode: ['1'],
     getRateShoppedData: true,
     rateType: 'baseRate',
