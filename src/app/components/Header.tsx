@@ -36,7 +36,7 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
     'Min Max',
     'Blackout Dates',
     'Manage Car Groupings',
-    'Manage Rules & Strategy'
+    'Manage Schedule and Rules'
   ];
 
   return (
