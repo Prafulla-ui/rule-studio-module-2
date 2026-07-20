@@ -79,6 +79,50 @@ const brandByRuleId: Record<string, string> = {
   '18': 'Sixt',
   '19': 'Avis',
   '20': 'Hertz',
+  '21': 'Avis',
+  '22': 'Budget',
+  '23': 'Enterprise',
+  '24': 'National',
+};
+
+const defineRuleOverridesByRuleId: Record<
+  string,
+  {
+    pickupLocation: string[];
+    sameDropoff: boolean;
+    dropOffLocation: string[];
+    lor: string[];
+    carCode: string[];
+  }
+> = {
+  '21': {
+    pickupLocation: ['YLW', 'LAS', 'SFO', 'PDX', 'PHX', 'LAX'],
+    sameDropoff: true,
+    dropOffLocation: ['YLW', 'LAS', 'SFO', 'PDX', 'PHX', 'LAX'],
+    lor: ['1', '2'],
+    carCode: ['A', 'B'],
+  },
+  '22': {
+    pickupLocation: ['ORD', 'DEN', 'BOS'],
+    sameDropoff: false,
+    dropOffLocation: ['SEA', 'MIA', 'ATL', 'DFW', 'IAH', 'MCO'],
+    lor: ['1', '2'],
+    carCode: ['C', 'E'],
+  },
+  '23': {
+    pickupLocation: ['LAS', 'PHX'],
+    sameDropoff: true,
+    dropOffLocation: ['LAS', 'PHX'],
+    lor: ['1', '2', '3', '4'],
+    carCode: ['A', 'B', 'C', 'E', 'F', 'G'],
+  },
+  '24': {
+    pickupLocation: ['YLW', 'LAS', 'SFO', 'PDX', 'PHX', 'LAX', 'ORD', 'DEN', 'BOS', 'SEA', 'MIA', 'ATL'],
+    sameDropoff: false,
+    dropOffLocation: ['DFW', 'IAH', 'MCO', 'YLW', 'LAS', 'SFO', 'PDX', 'PHX', 'LAX', 'ORD', 'DEN', 'BOS'],
+    lor: ['1', '2', '3', '4'],
+    carCode: ['A', 'B', 'C', 'E', 'F', 'G', 'H', 'K', 'L', 'S', 'V', 'W'],
+  },
 };
 
 const carCodeByRuleId: Record<string, string[]> = {
@@ -102,9 +146,23 @@ const carCodeByRuleId: Record<string, string[]> = {
   '18': ['F', 'G', 'H'],
   '19': ['H', 'G'],
   '20': ['K', 'L', 'S'],
+  '21': ['A', 'B'],
+  '22': ['C', 'E'],
+  '23': ['A', 'B', 'C', 'E', 'F', 'G'],
+  '24': ['A', 'B', 'C', 'E', 'F', 'G', 'H', 'K', 'L', 'S', 'V', 'W'],
 };
 
 function getDefineAttributes(base: BaseSampleRule, lorValue?: string[]) {
+  const override = defineRuleOverridesByRuleId[base.id];
+  if (override) {
+    return {
+      brand: brandByRuleId[base.id] || DEFAULT_DEFINE_RULE_ATTRIBUTES.brand,
+      ...override,
+      productCode:
+        productCodeMap[base.productType || ''] || DEFAULT_DEFINE_RULE_ATTRIBUTES.productCode,
+    };
+  }
+
   const pickupLocation =
     pickupLocationMap[base.location || ''] || DEFAULT_DEFINE_RULE_ATTRIBUTES.pickupLocation;
   const sameDropoff = !['3', '10', '15', '18'].includes(base.id);
@@ -596,6 +654,30 @@ function enrichRule(base: BaseSampleRule) {
         }),
       ],
     },
+    '21': {
+      description: 'Demo rule — hover pickup locations to see 6 values (shows first 3 + ellipsis).',
+      lors: ['1', '2'],
+      firstConditions: [firstConditionStandard({ leftValue: '10', rightValue: '12' })],
+      conditionalRules: [conditionalRule({ utilizationValue: '60', utilizationValueEnd: '70' })],
+    },
+    '22': {
+      description: 'Demo rule — hover drop-off locations to see 6 values (pickup has only 3, no tooltip).',
+      lors: ['1', '2'],
+      firstConditions: [firstConditionStandard({ leftValue: '9', rightValue: '11' })],
+      conditionalRules: [conditionalRule({ utilizationValue: '55', utilizationValueEnd: '65' })],
+    },
+    '23': {
+      description: 'Demo rule — hover LOR and car code columns for multi-value tooltips.',
+      lors: ['1', '2', '3', '4'],
+      firstConditions: [firstConditionStandard({ leftValue: '8', rightValue: '10' })],
+      conditionalRules: [conditionalRule({ utilizationValue: '50', utilizationValueEnd: '60' })],
+    },
+    '24': {
+      description: 'Demo rule — hover any column with 12 values to see a scrollable tooltip.',
+      lors: ['1', '2', '3', '4'],
+      firstConditions: [firstConditionStandard({ leftValue: '11', rightValue: '13' })],
+      conditionalRules: [conditionalRule({ utilizationValue: '65', utilizationValueEnd: '75' })],
+    },
   };
 
   const fieldConfig = configs[base.id];
@@ -622,6 +704,70 @@ function enrichRule(base: BaseSampleRule) {
 }
 
 const baseSampleRules: BaseSampleRule[] = [
+  {
+    id: '21',
+    name: 'Hover Demo — Pickup Locations',
+    status: 'active',
+    fleetTypes: ['Sedan', 'SUV'],
+    location: 'LAS-LAS',
+    productType: 'Premium',
+    condition: 'Demo — pickup column shows 6 locations',
+    action: 'Hover pickup to see full list',
+    schedule: 'Always Active',
+    createdDate: '2026-07-08',
+    lastExecuted: null,
+    executionCount: 0,
+    revenueImpact: '$0',
+    scheduleCount: 0,
+  },
+  {
+    id: '22',
+    name: 'Hover Demo — Drop-off Locations',
+    status: 'active',
+    fleetTypes: ['Sedan', 'Compact'],
+    location: 'Chicago',
+    productType: 'Economy',
+    condition: 'Demo — drop-off column shows 6 locations',
+    action: 'Hover drop-off to see full list',
+    schedule: 'Always Active',
+    createdDate: '2026-07-09',
+    lastExecuted: null,
+    executionCount: 0,
+    revenueImpact: '$0',
+    scheduleCount: 0,
+  },
+  {
+    id: '23',
+    name: 'Hover Demo — LOR & Car Code',
+    status: 'active',
+    fleetTypes: ['SUV', 'Luxury'],
+    location: 'Miami',
+    productType: 'Standard',
+    condition: 'Demo — LOR and car code columns',
+    action: 'Hover LOR (4 values) and car code (6 values)',
+    schedule: 'Always Active',
+    createdDate: '2026-07-10',
+    lastExecuted: null,
+    executionCount: 0,
+    revenueImpact: '$0',
+    scheduleCount: 0,
+  },
+  {
+    id: '24',
+    name: 'Hover Demo — Scrollable Tooltip',
+    status: 'active',
+    fleetTypes: ['All Fleet Types'],
+    location: 'Denver',
+    productType: 'Premium',
+    condition: 'Demo — 12 values per column with scroll',
+    action: 'Hover pickup, drop-off, or car code for scrollable tooltip',
+    schedule: 'Always Active',
+    createdDate: '2026-07-11',
+    lastExecuted: null,
+    executionCount: 0,
+    revenueImpact: '$0',
+    scheduleCount: 0,
+  },
   {
     id: '1',
     name: 'Weekend Premium Surge',

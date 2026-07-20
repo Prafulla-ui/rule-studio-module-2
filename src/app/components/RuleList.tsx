@@ -54,11 +54,48 @@ interface Rule {
   carCode?: string[];
 }
 
-function formatRuleListCellText(values: string[] | undefined): string {
-  if (!values?.length) {
-    return '—';
+const RULE_LIST_MULTI_VALUE_VISIBLE_COUNT = 3;
+const RULE_LIST_MULTI_VALUE_SCROLL_THRESHOLD = 10;
+
+function RuleListMultiValueCell({ values }: { values: string[] }) {
+  if (!values.length) {
+    return <span className="text-gray-700">—</span>;
   }
-  return values.join(', ');
+
+  const isTruncated = values.length > RULE_LIST_MULTI_VALUE_VISIBLE_COUNT;
+  const displayText = isTruncated
+    ? `${values.slice(0, RULE_LIST_MULTI_VALUE_VISIBLE_COUNT).join(', ')}...`
+    : values.join(', ');
+
+  if (!isTruncated) {
+    return <span className="text-gray-700">{displayText}</span>;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="block min-w-0 truncate text-gray-700 cursor-default">{displayText}</span>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className={`p-2 ${
+          values.length > RULE_LIST_MULTI_VALUE_SCROLL_THRESHOLD
+            ? 'max-w-md overflow-x-auto'
+            : 'max-w-sm'
+        }`}
+      >
+        <span
+          className={`text-xs leading-snug ${
+            values.length > RULE_LIST_MULTI_VALUE_SCROLL_THRESHOLD
+              ? 'whitespace-nowrap'
+              : 'break-words'
+          }`}
+        >
+          {values.join(', ')}
+        </span>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 const STICKY_COL_RULE_NAME = 'sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px]';
@@ -1004,19 +1041,19 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
                       {getRuleBrand(rule)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                      {formatRuleListCellText(getRulePickupLocations(rule))}
+                      <RuleListMultiValueCell values={getRulePickupLocations(rule)} />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                      {formatRuleListCellText(getRuleDropoffLocations(rule))}
+                      <RuleListMultiValueCell values={getRuleDropoffLocations(rule)} />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                       {getRuleProductCode(rule)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                      {formatRuleListCellText(getRuleLorValues(rule))}
+                      <RuleListMultiValueCell values={getRuleLorValues(rule)} />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                      {getRuleCarCodeValues(rule).join(',')}
+                      <RuleListMultiValueCell values={getRuleCarCodeValues(rule)} />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                       {formatListCreatedDate(rule.createdDate)}
