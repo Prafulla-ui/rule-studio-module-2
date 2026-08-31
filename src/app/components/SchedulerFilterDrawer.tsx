@@ -13,6 +13,7 @@ import { MultiSelect } from './MultiSelect';
 
 export type SchedulerFilterState = {
   scheduleName: string[];
+  brand: string[];
   startDate: string[];
   occurrence: string[];
   scheduleTime: string[];
@@ -34,6 +35,7 @@ export type SchedulerFilterOptions = {
 
 export const emptySchedulerFilters = (): SchedulerFilterState => ({
   scheduleName: [],
+  brand: [],
   startDate: [],
   occurrence: [],
   scheduleTime: [],
@@ -51,6 +53,7 @@ export const emptySchedulerFilters = (): SchedulerFilterState => ({
 
 const FILTER_FIELDS: { key: keyof SchedulerFilterState; label: string; placeholder: string }[] = [
   { key: 'scheduleName', label: 'Schedule Name', placeholder: 'Select schedule names' },
+  { key: 'brand', label: 'Brand', placeholder: 'Select brands' },
   { key: 'startDate', label: 'Start Date', placeholder: 'Select start dates' },
   { key: 'occurrence', label: 'Occurrence', placeholder: 'Select occurrences' },
   { key: 'scheduleTime', label: 'Schedule Time', placeholder: 'Select schedule times' },

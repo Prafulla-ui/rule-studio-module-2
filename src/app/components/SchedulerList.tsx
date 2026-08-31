@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { CustomButton } from './CustomButton';
-import { Filter, Search, Calendar, Info, Plus, Edit, ChevronsRight, ChevronsLeft, X, AlertTriangle, Archive } from 'lucide-react';
+import { Filter, Search, Calendar, Info, Plus, Edit, ChevronsRight, ChevronsLeft, X, AlertTriangle, Archive, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { SchedulerEditDrawer } from './SchedulerEditDrawer';
 import { SchedulerBulkEditDrawer, type BulkEditUpdates } from './SchedulerBulkEditDrawer';
 import {
@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner@2.0.3';
 import { normalizeTimeTo12Hour } from '../utils/timeFormat';
 import { formatListCreatedDate } from '../utils/listDateFormat';
+import { RULE_BRAND_OPTIONS } from '../constants/ruleDefineOptions';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -25,6 +26,13 @@ import {
 } from './ui/alert-dialog';
 
 const ARCHIVE_UNUSED_DAYS = 90;
+type BrandSortDirection = 'asc' | 'desc' | null;
+
+function compareSchedulerBrand(a: string, b: string, direction: 'asc' | 'desc'): number {
+  const normalize = (value: string) => (value === '—' ? '' : value.toLowerCase());
+  const comparison = normalize(a).localeCompare(normalize(b));
+  return direction === 'asc' ? comparison : -comparison;
+}
 type StatusTab = 'active' | 'inactive';
 
 function parseSchedulerDate(value: string | undefined): Date | null {
@@ -65,6 +73,7 @@ interface Scheduler {
   nextRun: string;
   updateTime: string;
   recurrence: string;
+  brand: string;
   createdDate: string;
   isActive: boolean;
   importStatus: 'complete' | 'needs_attention' | null;
@@ -93,6 +102,8 @@ function getSchedulerFieldValues(scheduler: any, field: keyof SchedulerFilterSta
   switch (field) {
     case 'scheduleName':
       return scheduler.scheduleName ? [scheduler.scheduleName] : [];
+    case 'brand':
+      return scheduler.brand ? [scheduler.brand] : [];
     case 'startDate':
       return scheduler.startDate ? [scheduler.startDate] : [];
     case 'occurrence':
@@ -148,6 +159,13 @@ function buildFilterOptions(schedulers: any[]): SchedulerFilterOptions {
     options[field].sort((a, b) => a.localeCompare(b));
   });
 
+  RULE_BRAND_OPTIONS.forEach((brand) => {
+    if (!options.brand.includes(brand)) {
+      options.brand.push(brand);
+    }
+  });
+  options.brand.sort((a, b) => a.localeCompare(b));
+
   return options;
 }
 
@@ -171,6 +189,7 @@ function countActiveFilterFields(filters: SchedulerFilterState): number {
 
 const FILTER_LABELS: Record<keyof SchedulerFilterState, string> = {
   scheduleName: 'Schedule Name',
+  brand: 'Brand',
   startDate: 'Start Date',
   occurrence: 'Occurrence',
   scheduleTime: 'Schedule Time',
@@ -231,6 +250,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
   const [showNeedsAttentionOnly, setShowNeedsAttentionOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [brandSortDirection, setBrandSortDirection] = useState<BrandSortDirection>(null);
 
   const filterOptions = useMemo(() => buildFilterOptions(schedulers.filter((s) => !s.isArchived)), [schedulers]);
 
@@ -283,6 +303,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
       nextRun: '',
       updateTime: scheduler.scheduleTime,
       recurrence: formatRecurrence(),
+      brand: scheduler.brand || '—',
       createdDate: formatListCreatedDate(scheduler.createdDate),
       isActive: getSchedulerIsActive(scheduler, activeStates),
       importStatus: scheduler.importStatus ?? null,
@@ -331,13 +352,26 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
     });
   }, [mappedSchedulers, schedulers, searchQuery, appliedFilters, showNeedsAttentionOnly, statusTab]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredSchedulers.length / itemsPerPage));
+  const sortedFilteredSchedulers = useMemo(() => {
+    if (!brandSortDirection) return filteredSchedulers;
+    return [...filteredSchedulers].sort((a, b) => compareSchedulerBrand(a.brand, b.brand, brandSortDirection));
+  }, [filteredSchedulers, brandSortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedFilteredSchedulers.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedSchedulers = filteredSchedulers.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedSchedulers = sortedFilteredSchedulers.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleBrandSort = () => {
+    setBrandSortDirection((current) => {
+      if (current === null) return 'asc';
+      if (current === 'asc') return 'desc';
+      return null;
+    });
+  };
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, appliedFilters, statusTab, showNeedsAttentionOnly, itemsPerPage]);
+  }, [searchQuery, appliedFilters, statusTab, showNeedsAttentionOnly, itemsPerPage, brandSortDirection]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -850,6 +884,25 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                   />
                 </th>
                 <th className={`px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap ${STICKY_COL_NAME_HEAD} ${STICKY_SHADOW} bg-gray-50`}>Name</th>
+                <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={handleBrandSort}
+                    className="inline-flex items-center gap-1 hover:text-[#2c3e50] transition-colors"
+                    aria-label={
+                      brandSortDirection === 'asc'
+                        ? 'Sort by brand ascending'
+                        : brandSortDirection === 'desc'
+                          ? 'Sort by brand descending'
+                          : 'Sort by brand'
+                    }
+                  >
+                    Brand
+                    {brandSortDirection === 'asc' && <ArrowUp className="h-3.5 w-3.5 text-[#ff9800]" />}
+                    {brandSortDirection === 'desc' && <ArrowDown className="h-3.5 w-3.5 text-[#ff9800]" />}
+                    {brandSortDirection === null && <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />}
+                  </button>
+                </th>
                 <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Created Date</th>
                 <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Submission Type</th>
                 <th className="px-4 py-3 text-left text-xs text-[#666666] whitespace-nowrap">Rate Basis</th>
@@ -873,7 +926,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
             <tbody className="divide-y divide-gray-200">
               {filteredSchedulers.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={21} className="px-4 py-12 text-center text-gray-500">
                     No {statusTab} schedulers found.
                     {(searchQuery || hasActiveFilters) && ' Try adjusting your search or filters.'}
                   </td>
@@ -932,6 +985,7 @@ export function SchedulerList({ schedulers, onCreateScheduler, onUpdateScheduler
                       )}
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.brand}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.createdDate}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.submissionType}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{scheduler.rateBasis}</td>

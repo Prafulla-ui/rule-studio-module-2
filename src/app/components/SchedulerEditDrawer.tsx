@@ -26,7 +26,7 @@ import {
   validateImportedScheduler,
 } from '../utils/schedulerImportValidation';
 import { normalizeTimeTo12Hour, TIME_12H_SELECT_OPTIONS } from '../utils/timeFormat';
-import { RULE_CAR_CODE_OPTIONS } from '../constants/ruleDefineOptions';
+import { RULE_BRAND_OPTIONS, RULE_CAR_CODE_OPTIONS, toSelectOptions } from '../constants/ruleDefineOptions';
 
 interface SchedulerEditDrawerProps {
   isOpen: boolean;
@@ -40,6 +40,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
   const [schedulerData, setSchedulerData] = useState({
     id: '',
     scheduleName: '',
+    brand: '',
     selectedSchedule: '',
     submissionType: '',
     pickupLocation: [] as string[],
@@ -328,8 +329,8 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
             <div>
               <h3 className="text-[#2c3e50] text-base font-medium">Scheduler Information</h3>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="min-w-[180px] flex-1">
                 <label className={fieldLabelClass('scheduleName')}>Schedule Name <span className="text-red-500">*</span></label>
                 <Input
                   value={schedulerData.scheduleName}
@@ -339,7 +340,16 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                 />
                 {renderFieldError('scheduleName')}
               </div>
-              <div>
+              <div className="min-w-[140px] flex-1">
+                <label className="block text-xs text-[#666666] mb-1.5">Select brand</label>
+                <CustomSelect
+                  value={schedulerData.brand}
+                  onChange={(value) => setSchedulerData({ ...schedulerData, brand: value })}
+                  options={toSelectOptions(RULE_BRAND_OPTIONS)}
+                  placeholder="Select"
+                />
+              </div>
+              <div className="min-w-[180px] flex-1">
                 <label className="block text-xs text-[#666666] mb-1.5">Select Schedule</label>
                 <CustomSelect
                   value={schedulerData.selectedSchedule}
@@ -357,7 +367,7 @@ export function SchedulerEditDrawer({ isOpen, onClose, scheduler, onSave, existi
                   (Load a predefined schedule template to auto-fill details)
                 </p>
               </div>
-              <div>
+              <div className="min-w-[140px] flex-1">
                 <label className={fieldLabelClass('submissionType')}>Submission Type <span className="text-red-500">*</span></label>
                 <CustomSelect
                   value={schedulerData.submissionType}

@@ -16,6 +16,7 @@ import { CustomSelect } from './CustomSelect';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { applyImportValidation } from '../utils/schedulerImportValidation';
 import { formatListCreatedDate } from '../utils/listDateFormat';
+import { RULE_BRAND_OPTIONS } from '../constants/ruleDefineOptions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -286,13 +287,17 @@ export function RuleList({ rules, schedulers, onUpdateStatus, onDelete, onUpdate
   
   // First-time user states
   const [isFirstTimeRules, setIsFirstTimeRules] = useState(() => rules.length === 0);
-  const [isFirstTimeScheduler, setIsFirstTimeScheduler] = useState(true);
+  const [isFirstTimeScheduler, setIsFirstTimeScheduler] = useState(false);
   const [demoSchedulerData, setDemoSchedulerData] = useState(() =>
-    demoSchedulers.map((scheduler) =>
-      scheduler.creationSource === 'excel'
-        ? applyImportValidation(scheduler as Record<string, unknown>)
-        : scheduler
-    )
+    demoSchedulers.map((scheduler, index) => {
+      const withBrand = {
+        ...scheduler,
+        brand: scheduler.brand ?? RULE_BRAND_OPTIONS[index % RULE_BRAND_OPTIONS.length],
+      };
+      return withBrand.creationSource === 'excel'
+        ? applyImportValidation(withBrand as Record<string, unknown>)
+        : withBrand;
+    })
   );
 
   useEffect(() => {

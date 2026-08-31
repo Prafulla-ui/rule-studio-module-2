@@ -23,7 +23,7 @@ import {
   parseMockExcelImport,
   type ImportSummary,
 } from '../utils/schedulerImportValidation';
-import { RULE_CAR_CODE_OPTIONS } from '../constants/ruleDefineOptions';
+import { RULE_BRAND_OPTIONS, RULE_CAR_CODE_OPTIONS, toSelectOptions } from '../constants/ruleDefineOptions';
 import { TIME_12H_SELECT_OPTIONS, normalizeTimeTo12Hour } from '../utils/timeFormat';
 
 type CreationMethod = 'manual' | 'import';
@@ -31,6 +31,7 @@ type CreationMethod = 'manual' | 'import';
 function getInitialSchedulerData() {
   return {
     scheduleName: '',
+    brand: '',
     selectedSchedule: '',
     submissionType: '',
     pickupLocation: [] as string[],
@@ -82,6 +83,7 @@ function getInitialSchedulerData() {
 function hasManualFormData(data: ReturnType<typeof getInitialSchedulerData>): boolean {
   return Boolean(
     data.scheduleName.trim() ||
+    data.brand ||
     data.selectedSchedule ||
     data.submissionType ||
     data.pickupLocation.length > 0 ||
@@ -492,8 +494,8 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
             <div>
               <h3 className="text-[#2c3e50] text-base font-medium">Scheduler Information</h3>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="min-w-[180px] flex-1">
                 <label className="block text-xs text-[#666666] mb-1.5">Schedule Name <span className="text-red-500">*</span></label>
                 <Input
                   value={schedulerData.scheduleName}
@@ -502,7 +504,16 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
                   className="h-7"
                 />
               </div>
-              <div>
+              <div className="min-w-[140px] flex-1">
+                <label className="block text-xs text-[#666666] mb-1.5">Select brand</label>
+                <CustomSelect
+                  value={schedulerData.brand}
+                  onChange={(value) => setSchedulerData({ ...schedulerData, brand: value })}
+                  options={toSelectOptions(RULE_BRAND_OPTIONS)}
+                  placeholder="Select"
+                />
+              </div>
+              <div className="min-w-[180px] flex-1">
                 <label className="block text-xs text-[#666666] mb-1.5">Select Schedule</label>
                 <CustomSelect
                   value={schedulerData.selectedSchedule}
@@ -518,7 +529,7 @@ export function SchedulerCreator({ onSave, onCancel, onImportSave, existingSched
                   (Load a predefined schedule template to auto-fill details)
                 </p>
               </div>
-              <div>
+              <div className="min-w-[140px] flex-1">
                 <label className="block text-xs text-[#666666] mb-1.5">Submission Type <span className="text-red-500">*</span></label>
                 <CustomSelect
                   value={schedulerData.submissionType}
